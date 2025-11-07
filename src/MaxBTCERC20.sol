@@ -20,6 +20,9 @@ contract MaxBTCERC20 is IMintableAndBurnable, UUPSUpgradeable, ERC20Upgradeable,
     /// @param caller The address of the caller
     error CallerIsNotICS20(address caller);
 
+    /// @notice Provided ICS20 address is invalid
+    error InvalidICS20();
+
     /// @notice ERC-7201 slot for the ICS20 contract address
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.erc20.ics20")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant ICS20_STORAGE_SLOT = 0xaa9b9403d129a09996409713bb21f8632c135ae1789678b7128d16411b23e500;
@@ -46,6 +49,10 @@ contract MaxBTCERC20 is IMintableAndBurnable, UUPSUpgradeable, ERC20Upgradeable,
     {
         __ERC20_init(name_, symbol_);
         __Ownable_init(owner_);
+
+        if (ics20_ == address(0)) {
+            revert InvalidICS20();
+        }
 
         StorageSlot.getAddressSlot(ICS20_STORAGE_SLOT).value = ics20_;
     }
