@@ -2,10 +2,11 @@
 // Copyright (c) 2024 COSMOS
 // Copyright (c) 2025 Structured
 // Modifications by Structured:
-//   - renamed contract to MaxBTCERC20
+//   - rename contract to MaxBTCERC20
 //   - set decimals() to 8
 //   - remove decimals() @dev docstring
 //   - replace config with dedicated ICS20 storage slot
+//   - disable renounceOwnership()
 pragma solidity ^0.8.28;
 
 import { IMintableAndBurnable } from "./IMintableAndBurnable.sol";
@@ -73,6 +74,12 @@ contract MaxBTCERC20 is IMintableAndBurnable, UUPSUpgradeable, ERC20Upgradeable,
     /// @inheritdoc UUPSUpgradeable
     function _authorizeUpgrade(address) internal view override(UUPSUpgradeable) onlyOwner { }
     // solhint-disable-previous-line no-empty-blocks
+
+    /// @notice prevents `owner` from renouncing ownership and potentially locking assets forever
+    /// @dev overrides OwnableUpgradeable's renounceOwnership to always revert
+    function renounceOwnership() public view override onlyOwner {
+        revert("Renouncing ownership disabled!");
+    }
 
     /// @notice Modifier to check if the caller is the ICS20 contract
     modifier onlyICS20() {
