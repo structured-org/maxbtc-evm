@@ -12,10 +12,10 @@ pragma solidity ^0.8.28;
 import { IMintableAndBurnable } from "./IMintableAndBurnable.sol";
 import { ERC20Upgradeable } from "@openzeppelin-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts/proxy/utils/UUPSUpgradeable.sol";
-import { OwnableUpgradeable } from "@openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
+import { Ownable2StepUpgradeable } from "@openzeppelin-upgradeable/access/Ownable2StepUpgradeable.sol";
 import { StorageSlot } from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
-contract MaxBTCERC20 is IMintableAndBurnable, UUPSUpgradeable, ERC20Upgradeable, OwnableUpgradeable {
+contract MaxBTCERC20 is IMintableAndBurnable, UUPSUpgradeable, ERC20Upgradeable, Ownable2StepUpgradeable {
     /// @notice Caller is not the ICS20 contract
     /// @param caller The address of the caller
     error CallerIsNotICS20(address caller);
