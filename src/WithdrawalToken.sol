@@ -60,12 +60,12 @@ contract WithdrawalToken is
     }
 
     function mintBatch(
-        address to,
-        uint256[] calldata ids,
-        uint256[] calldata amounts,
-        bytes calldata data
-    ) external onlyOwner {
-        _mintBatch(to, ids, amounts, data);
+        address,
+        uint256[] calldata,
+        uint256[] calldata,
+        bytes calldata
+    ) external pure {
+        revert("mintBatch is disabled");
     }
 
     function burn(address from, uint256 id, uint256 amount) public override {
@@ -74,12 +74,11 @@ contract WithdrawalToken is
     }
 
     function burnBatch(
-        address from,
-        uint256[] memory ids,
-        uint256[] memory amounts
-    ) public override {
-        // Only owner or approved can burn
-        super.burnBatch(from, ids, amounts);
+        address,
+        uint256[] memory,
+        uint256[] memory
+    ) public pure override {
+        revert("burnBatch is disabled");
     }
 
     error InvalidImplementation();

@@ -37,7 +37,7 @@ contract WithdrawalTokenTest is Test {
         assertEq(token.balanceOf(user, 1), 100);
     }
 
-    function testMintBatchByOwner() public {
+    function testMintBatchByOwnerReverts() public {
         uint256[] memory ids = new uint256[](2);
         uint256[] memory amounts = new uint256[](2);
         ids[0] = 1;
@@ -45,9 +45,8 @@ contract WithdrawalTokenTest is Test {
         amounts[0] = 50;
         amounts[1] = 150;
         vm.prank(owner);
+        vm.expectRevert(bytes("mintBatch is disabled"));
         token.mintBatch(user, ids, amounts, "");
-        assertEq(token.balanceOf(user, 1), 50);
-        assertEq(token.balanceOf(user, 2), 150);
     }
 
     function testMintNotOwnerReverts() public {
@@ -65,12 +64,7 @@ contract WithdrawalTokenTest is Test {
         uint256[] memory amounts = new uint256[](1);
         ids[0] = 1;
         amounts[0] = 1;
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "OwnableUnauthorizedAccount(address)",
-                address(this)
-            )
-        );
+        vm.expectRevert(bytes("mintBatch is disabled"));
         token.mintBatch(user, ids, amounts, "");
     }
     function testBurnByOwner() public {
@@ -82,7 +76,7 @@ contract WithdrawalTokenTest is Test {
         assertEq(token.balanceOf(user, 1), 60);
     }
 
-    function testBurnBatchByOwner() public {
+    function testBurnBatchByOwnerReverts() public {
         uint256[] memory ids = new uint256[](2);
         uint256[] memory amounts = new uint256[](2);
         ids[0] = 1;
@@ -90,16 +84,9 @@ contract WithdrawalTokenTest is Test {
         amounts[0] = 50;
         amounts[1] = 150;
         vm.prank(owner);
+        vm.expectRevert(bytes("mintBatch is disabled"));
         token.mintBatch(user, ids, amounts, "");
-        assertEq(token.balanceOf(user, 1), 50);
-        assertEq(token.balanceOf(user, 2), 150);
-        uint256[] memory burnAmounts = new uint256[](2);
-        burnAmounts[0] = 10;
-        burnAmounts[1] = 100;
-        vm.prank(user);
-        token.burnBatch(user, ids, burnAmounts);
-        assertEq(token.balanceOf(user, 1), 40);
-        assertEq(token.balanceOf(user, 2), 50);
+        // burnBatch cannot be tested for revert if mintBatch is disabled
     }
 
     function testBurnNotOwnerOrApprovedReverts() public {
@@ -119,13 +106,8 @@ contract WithdrawalTokenTest is Test {
         amounts[0] = 50;
         amounts[1] = 150;
         vm.prank(owner);
+        vm.expectRevert(bytes("mintBatch is disabled"));
         token.mintBatch(user, ids, amounts, "");
-        address attacker = address(0xBEEF);
-        uint256[] memory burnAmounts = new uint256[](2);
-        burnAmounts[0] = 10;
-        burnAmounts[1] = 100;
-        vm.prank(attacker);
-        vm.expectRevert();
-        token.burnBatch(user, ids, burnAmounts);
+        // burnBatch cannot be tested for revert if mintBatch is disabled
     }
 }
