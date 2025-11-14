@@ -108,4 +108,6 @@ contract Waitosaur is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _authorizeUpgrade(
         address newImplementation
     ) internal override onlyOwner {}
+
+    uint256[50] private __gap;
 }
