@@ -17,6 +17,7 @@ import {
     UUPSUpgradeable
 } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
 contract WithdrawalToken is
     Initializable,
@@ -25,9 +26,19 @@ contract WithdrawalToken is
     OwnableUpgradeable,
     UUPSUpgradeable
 {
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_token.name")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant NAME_STORAGE_SLOT =
+        0x190eb2605c587c583d04f046ca87c4680dfd9f551aa34f413199ca360f03b400;
+
     using Strings for uint256;
 
-    string public name;
+    function name() public view returns (string memory) {
+        return StorageSlot.getStringSlot(NAME_STORAGE_SLOT).value;
+    }
+
+    function _setName(string memory newName) internal {
+        StorageSlot.getStringSlot(NAME_STORAGE_SLOT).value = newName;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -42,8 +53,7 @@ contract WithdrawalToken is
         __ERC1155_init(baseUri_);
         __Ownable_init(owner_);
         __UUPSUpgradeable_init();
-
-        name = name_;
+        _setName(name_);
     }
 
     function symbol(uint256 id) public pure returns (string memory) {
@@ -68,9 +78,12 @@ contract WithdrawalToken is
         revert("mintBatch is disabled");
     }
 
-    function burn(address from, uint256 id, uint256 amount) public override {
-        // Only owner or approved can burn
-        super.burn(from, id, amount);
+    function burn(
+        address from,
+        uint256 id,
+        uint256 amount
+    ) public override onlyOwner {
+        _burn(from, id, amount);
     }
 
     function burnBatch(

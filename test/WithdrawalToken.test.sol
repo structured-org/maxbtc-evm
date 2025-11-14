@@ -71,7 +71,8 @@ contract WithdrawalTokenTest is Test {
         vm.prank(owner);
         token.mint(user, 1, 100, "");
         assertEq(token.balanceOf(user, 1), 100);
-        vm.prank(user);
+        // Only owner can burn
+        vm.prank(owner);
         token.burn(user, 1, 40);
         assertEq(token.balanceOf(user, 1), 60);
     }
@@ -89,12 +90,17 @@ contract WithdrawalTokenTest is Test {
         // burnBatch cannot be tested for revert if mintBatch is disabled
     }
 
-    function testBurnNotOwnerOrApprovedReverts() public {
+    function testBurnNotOwnerReverts() public {
         vm.prank(owner);
         token.mint(user, 1, 100, "");
         address attacker = address(0xBEEF);
         vm.prank(attacker);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "OwnableUnauthorizedAccount(address)",
+                attacker
+            )
+        );
         token.burn(user, 1, 10);
     }
 
