@@ -10,28 +10,37 @@ import {
 import {
     OwnableUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-
-interface iERC20 {
-    function balanceOf(address account) external view returns (uint256);
-}
+import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
 contract Waitosaur is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     // Custom errors
     error InvalidTokenAddress();
     error AlreadyUnlocked();
+    error AlreadyLocked();
     error AmountZero();
     error NothingLocked();
     error InsufficientBalance();
     error NotLocker();
     error NotUnLocker();
 
-    iERC20 public TOKEN;
-    uint256 public lockedAmount;
-    bool public unlocked;
-
-    address public locker;
-    address public unLocker;
-    address public receiver;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.erc20")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant ERC20_STORAGE_SLOT =
+        0x4c6a3d0251945e72f6c16332c04b1ac74bce9eac21caff42ddb44b5b6f36f600;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.locker")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant LOCKER_STORAGE_SLOT =
+        0x794332f0d73104ee1db885085af3a929b59ea9c8b4dac3526d7a1c3a586eb600;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.unlocker")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant UNLOCKER_STORAGE_SLOT =
+        0x8ea419c381c469f3563403b843e5ae95e20a2b97aba2e84c1def1317311d2c00;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.receiver")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant RECEIVER_STORAGE_SLOT =
+        0xd865fa479d4018d6ba701cc10bbc8b46de27385f50296c5b7ae3055897feeb00;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.lockedAmount")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant LOCKED_AMOUNT_STORAGE_SLOT =
+        0x8eca6ddedc0e1eaee56a7d530ebea5272dd8f101e2853a7487fc6d82b2fd6500;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.unlocked")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant UNLOCKED_STORAGE_SLOT =
+        0x627f2e206ec466bb32c8d9edddcf1eacda0c89eefc4cc77cc9f48adb1b2c1b00;
 
     event Locked(uint256 indexed amount);
     event Unlocked();
@@ -54,34 +63,55 @@ contract Waitosaur is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (_token == address(0)) revert InvalidTokenAddress();
         __Ownable_init(owner_);
         __UUPSUpgradeable_init();
-        TOKEN = iERC20(_token);
-        locker = _locker;
-        unLocker = _unLocker;
-        receiver = _receiver;
+        StorageSlot.getUint256Slot(LOCKED_AMOUNT_STORAGE_SLOT).value = 0;
+        StorageSlot.getBooleanSlot(UNLOCKED_STORAGE_SLOT).value = true;
+        StorageSlot.getAddressSlot(ERC20_STORAGE_SLOT).value = _token;
+        StorageSlot.getAddressSlot(LOCKER_STORAGE_SLOT).value = _locker;
+        StorageSlot.getAddressSlot(UNLOCKER_STORAGE_SLOT).value = _unLocker;
+        StorageSlot.getAddressSlot(RECEIVER_STORAGE_SLOT).value = _receiver;
     }
 
     function lock(uint256 amount) external {
-        if (msg.sender != locker) revert NotLocker();
-        if (unlocked) revert AlreadyUnlocked();
+        if (msg.sender != StorageSlot.getAddressSlot(LOCKER_STORAGE_SLOT).value)
+            revert NotLocker();
+        if (StorageSlot.getBooleanSlot(UNLOCKED_STORAGE_SLOT).value == false)
+            revert AlreadyLocked();
         if (amount == 0) revert AmountZero();
-        lockedAmount = amount;
+        StorageSlot.getUint256Slot(LOCKED_AMOUNT_STORAGE_SLOT).value = amount;
+        StorageSlot.getBooleanSlot(UNLOCKED_STORAGE_SLOT).value = false;
         emit Locked(amount);
     }
 
     function unlock() external {
-        if (msg.sender != unLocker) revert NotUnLocker();
-        if (unlocked) revert AlreadyUnlocked();
-        if (lockedAmount == 0) revert NothingLocked();
-        uint256 balance = TOKEN.balanceOf(address(this));
-        if (balance < lockedAmount) revert InsufficientBalance();
-        if (receiver == address(0)) revert("Receiver not set");
-        unlocked = true;
+        if (
+            msg.sender !=
+            StorageSlot.getAddressSlot(UNLOCKER_STORAGE_SLOT).value
+        ) revert NotUnLocker();
+        if (StorageSlot.getBooleanSlot(UNLOCKED_STORAGE_SLOT).value == true)
+            revert AlreadyUnlocked();
+        if (StorageSlot.getUint256Slot(LOCKED_AMOUNT_STORAGE_SLOT).value == 0)
+            revert NothingLocked();
+        address tokenAddr = token();
+        (bool success, bytes memory data) = tokenAddr.call(
+            abi.encodeWithSignature("balanceOf(address)", address(this))
+        );
+        require(success && data.length >= 32, "balanceOf failed");
+        uint256 balance = abi.decode(data, (uint256));
+        if (
+            balance <
+            StorageSlot.getUint256Slot(LOCKED_AMOUNT_STORAGE_SLOT).value
+        ) revert InsufficientBalance();
+        if (
+            StorageSlot.getAddressSlot(RECEIVER_STORAGE_SLOT).value ==
+            address(0)
+        ) revert("Receiver not set");
+        StorageSlot.getBooleanSlot(UNLOCKED_STORAGE_SLOT).value = true;
         // Transfer lockedAmount to receiver
-        (bool success, bytes memory data) = address(TOKEN).call(
+        (success, data) = tokenAddr.call(
             abi.encodeWithSignature(
                 "transfer(address,uint256)",
-                receiver,
-                lockedAmount
+                StorageSlot.getAddressSlot(RECEIVER_STORAGE_SLOT).value,
+                StorageSlot.getUint256Slot(LOCKED_AMOUNT_STORAGE_SLOT).value
             )
         );
         require(
@@ -90,19 +120,43 @@ contract Waitosaur is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
         emit Unlocked();
     }
+
     function updateReceiver(address newReceiver) external onlyOwner {
-        receiver = newReceiver;
+        StorageSlot.getAddressSlot(RECEIVER_STORAGE_SLOT).value = newReceiver;
         emit ReceiverUpdated(newReceiver);
     }
 
     function updateLocker(address newLocker) external onlyOwner {
-        locker = newLocker;
+        StorageSlot.getAddressSlot(LOCKER_STORAGE_SLOT).value = newLocker;
         emit LockerUpdated(newLocker);
     }
 
     function updateUnLocker(address newUnLocker) external onlyOwner {
-        unLocker = newUnLocker;
+        StorageSlot.getAddressSlot(UNLOCKER_STORAGE_SLOT).value = newUnLocker;
         emit UnLockerUpdated(newUnLocker);
+    }
+
+    function lockedAmount() public view returns (uint256) {
+        return StorageSlot.getUint256Slot(LOCKED_AMOUNT_STORAGE_SLOT).value;
+    }
+
+    function unlocked() public view returns (bool) {
+        return StorageSlot.getBooleanSlot(UNLOCKED_STORAGE_SLOT).value;
+    }
+    function receiver() public view returns (address) {
+        return StorageSlot.getAddressSlot(RECEIVER_STORAGE_SLOT).value;
+    }
+
+    function token() public view returns (address) {
+        return StorageSlot.getAddressSlot(ERC20_STORAGE_SLOT).value;
+    }
+
+    function locker() public view returns (address) {
+        return StorageSlot.getAddressSlot(LOCKER_STORAGE_SLOT).value;
+    }
+
+    function unLocker() public view returns (address) {
+        return StorageSlot.getAddressSlot(UNLOCKER_STORAGE_SLOT).value;
     }
 
     function _authorizeUpgrade(

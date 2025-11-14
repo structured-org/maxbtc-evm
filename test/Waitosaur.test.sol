@@ -7,12 +7,7 @@ import {
     ERC1967Proxy
 } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-contract MockERC20 is waitosaurSrc.iERC20 {
-    function burn(address from, uint256 amount) external {
-        if (balanceOf[from] < amount) revert InsufficientBalance();
-        balanceOf[from] -= amount;
-        totalSupply -= amount;
-    }
+contract MockERC20 {
     string public name = "MockToken";
     string public symbol = "MTK";
     uint8 public decimals = 18;
@@ -24,6 +19,11 @@ contract MockERC20 is waitosaurSrc.iERC20 {
     error InsufficientBalance();
     error InsufficientAllowance();
 
+    function burn(address from, uint256 amount) external {
+        if (balanceOf[from] < amount) revert InsufficientBalance();
+        balanceOf[from] -= amount;
+        totalSupply -= amount;
+    }
     function transfer(address to, uint256 amount) external returns (bool) {
         if (balanceOf[msg.sender] < amount) revert InsufficientBalance();
         balanceOf[msg.sender] -= amount;
@@ -43,7 +43,6 @@ contract MockERC20 is waitosaurSrc.iERC20 {
         allowance[from][msg.sender] -= amount;
         return true;
     }
-
     function mint(address to, uint256 amount) external {
         balanceOf[to] += amount;
         totalSupply += amount;
@@ -98,6 +97,7 @@ contract WaitosaurTest is Test {
         waitosaur.lock(100 ether);
         assertEq(token.balanceOf(address(waitosaur)), 1000 ether);
         assertEq(token.balanceOf(receiver), 0);
+        assertEq(waitosaur.unlocked(), false);
 
         vm.prank(unLocker);
         waitosaur.unlock();
