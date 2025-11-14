@@ -50,6 +50,16 @@ contract MockERC20 {
 }
 
 contract WaitosaurTest is Test {
+    function testLastLockedIsSetOnLock() public {
+        vm.prank(locker);
+        uint256 before = block.timestamp;
+        waitosaur.lock(100 ether);
+        uint256 lockedTs = waitosaur.lastLocked();
+        // Should be >= before and <= now
+        assertGe(lockedTs, before);
+        assertLe(lockedTs, block.timestamp);
+    }
+
     function testUnlockFailsIfLowBalance() public {
         vm.prank(locker);
         waitosaur.lock(100 ether);

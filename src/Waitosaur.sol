@@ -41,6 +41,9 @@ contract Waitosaur is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.unlocked")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant UNLOCKED_STORAGE_SLOT =
         0x627f2e206ec466bb32c8d9edddcf1eacda0c89eefc4cc77cc9f48adb1b2c1b00;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.lastLocked")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant LAST_LOCKED_STORAGE_SLOT =
+        0x8618c6720e48c8e743d6df14c17919519060a34f4c4c0b5a38e1aa82752eab00;
 
     event Locked(uint256 indexed amount);
     event Unlocked();
@@ -80,6 +83,12 @@ contract Waitosaur is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         StorageSlot.getUint256Slot(LOCKED_AMOUNT_STORAGE_SLOT).value = amount;
         StorageSlot.getBooleanSlot(UNLOCKED_STORAGE_SLOT).value = false;
         emit Locked(amount);
+        // Store the current block timestamp in LAST_LOCKED_STORAGE_SLOT
+        StorageSlot.getUint256Slot(LAST_LOCKED_STORAGE_SLOT).value = block
+            .timestamp;
+    }
+    function lastLocked() public view returns (uint256) {
+        return StorageSlot.getUint256Slot(LAST_LOCKED_STORAGE_SLOT).value;
     }
 
     function unlock() external {
