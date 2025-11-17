@@ -48,9 +48,9 @@ contract WaitosaurHolder is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     bytes32 private constant STATE_STORAGE_SLOT =
         0xcb11509986cbc674883f88160c41f636c73566a871549bf8441ad8bc0e648300;
 
-    event Locked(uint256 indexed amount);
+    event Locked(uint256 amount);
     event Unlocked();
-    event ConfigUpdated(WaitosaurConfig indexed config);
+    event ConfigUpdated(WaitosaurConfig config);
 
     function _getWaitosaurConfig()
         private
