@@ -16,7 +16,7 @@ contract WithdrawalTokenTest is Test {
         WithdrawalToken implementation = new WithdrawalToken();
         bytes memory initData = abi.encodeCall(
             WithdrawalToken.initialize,
-            (owner, "https://api.example.com/", "WithdrawalToken")
+            (owner, "https://api.example.com/", "WithdrawalToken", "WRT-")
         );
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(implementation),

@@ -5,9 +5,6 @@ import {
     ERC1155Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
 import {
-    ERC1155BurnableUpgradeable
-} from "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155BurnableUpgradeable.sol";
-import {
     OwnableUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {
@@ -28,6 +25,9 @@ contract WithdrawalToken is
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_token.name")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant NAME_STORAGE_SLOT =
         0x190eb2605c587c583d04f046ca87c4680dfd9f551aa34f413199ca360f03b400;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_token.prefix")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant PREFIX_STORAGE_SLOT =
+        0x0d84cbc9810e57874f12de4633745d6fecec5db0f760c60f67b201951f5edc00;
 
     using Strings for uint256;
 
@@ -39,6 +39,14 @@ contract WithdrawalToken is
         StorageSlot.getStringSlot(NAME_STORAGE_SLOT).value = newName;
     }
 
+    function prefix() public view returns (string memory) {
+        return StorageSlot.getStringSlot(PREFIX_STORAGE_SLOT).value;
+    }
+
+    function _setPrefix(string memory newPrefix) internal {
+        StorageSlot.getStringSlot(PREFIX_STORAGE_SLOT).value = newPrefix;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -47,16 +55,18 @@ contract WithdrawalToken is
     function initialize(
         address owner_,
         string memory baseUri_,
-        string memory name_
+        string memory name_,
+        string memory prefix_
     ) public initializer {
         __ERC1155_init(baseUri_);
         __Ownable_init(owner_);
         __UUPSUpgradeable_init();
         _setName(name_);
+        _setPrefix(prefix_);
     }
 
-    function symbol(uint256 id) public pure returns (string memory) {
-        return string.concat("WRT-", id.toString());
+    function symbol(uint256 id) public view returns (string memory) {
+        return string.concat(prefix(), id.toString());
     }
 
     function mint(
@@ -71,7 +81,6 @@ contract WithdrawalToken is
     function burn(address from, uint256 id, uint256 amount) public onlyOwner {
         _burn(from, id, amount);
     }
-    error InvalidImplementation();
 
     /// @inheritdoc UUPSUpgradeable
     function _authorizeUpgrade(
