@@ -28,8 +28,18 @@ contract WithdrawalToken is
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_token.prefix")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant PREFIX_STORAGE_SLOT =
         0x0d84cbc9810e57874f12de4633745d6fecec5db0f760c60f67b201951f5edc00;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_token.core")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant CORE_STORAGE_SLOT =
+        0x91df784e22c2f214d982f522afd62bdd70c7787971d699d2545768e9d3a97200;
 
     using Strings for uint256;
+
+    error OnlyCoreCanMintOrBurn();
+
+    modifier onlyCore() {
+        require(msg.sender == coreAddress(), OnlyCoreCanMintOrBurn());
+        _;
+    }
 
     function name() public view returns (string memory) {
         return StorageSlot.getStringSlot(NAME_STORAGE_SLOT).value;
@@ -47,6 +57,14 @@ contract WithdrawalToken is
         StorageSlot.getStringSlot(PREFIX_STORAGE_SLOT).value = newPrefix;
     }
 
+    function coreAddress() public view returns (address) {
+        return StorageSlot.getAddressSlot(CORE_STORAGE_SLOT).value;
+    }
+
+    function _setCoreAddress(address newCoreAddress) internal {
+        StorageSlot.getAddressSlot(CORE_STORAGE_SLOT).value = newCoreAddress;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -54,6 +72,7 @@ contract WithdrawalToken is
 
     function initialize(
         address owner_,
+        address core_,
         string memory baseUri_,
         string memory name_,
         string memory prefix_
@@ -63,6 +82,7 @@ contract WithdrawalToken is
         __UUPSUpgradeable_init();
         _setName(name_);
         _setPrefix(prefix_);
+        _setCoreAddress(core_);
     }
 
     function symbol(uint256 id) public view returns (string memory) {
@@ -74,11 +94,11 @@ contract WithdrawalToken is
         uint256 id,
         uint256 amount,
         bytes calldata data
-    ) external onlyOwner {
+    ) external onlyCore {
         _mint(to, id, amount, data);
     }
 
-    function burn(address from, uint256 id, uint256 amount) public onlyOwner {
+    function burn(address from, uint256 id, uint256 amount) public onlyCore {
         _burn(from, id, amount);
     }
 

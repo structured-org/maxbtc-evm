@@ -10,13 +10,14 @@ import {
 contract WithdrawalTokenTest is Test {
     WithdrawalToken internal token;
     address internal owner = address(0xABCD);
+    address internal core = address(0xBEEF);
     address internal user = address(0x1234);
 
     function setUp() public {
         WithdrawalToken implementation = new WithdrawalToken();
         bytes memory initData = abi.encodeCall(
             WithdrawalToken.initialize,
-            (owner, "https://api.example.com/", "WithdrawalToken", "WRT-")
+            (owner, core, "https://api.example.com/", "WithdrawalToken", "WRT-")
         );
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(implementation),
@@ -31,43 +32,32 @@ contract WithdrawalTokenTest is Test {
         assertEq(token.symbol(1), "WRT-1");
     }
 
-    function testMintByOwner() public {
-        vm.prank(owner);
+    function testMintByCore() public {
+        vm.prank(core);
         token.mint(user, 1, 100, "");
         assertEq(token.balanceOf(user, 1), 100);
     }
 
-    function testMintNotOwnerReverts() public {
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "OwnableUnauthorizedAccount(address)",
-                address(this)
-            )
-        );
+    function testMintNotCoreReverts() public {
+        vm.expectRevert(WithdrawalToken.OnlyCoreCanMintOrBurn.selector);
         token.mint(user, 1, 1, "");
     }
 
-    function testBurnByOwner() public {
-        vm.prank(owner);
+    function testBurnByCore() public {
+        vm.prank(core);
         token.mint(user, 1, 100, "");
         assertEq(token.balanceOf(user, 1), 100);
-        // Only owner can burn
-        vm.prank(owner);
+        // Only core can burn
+        vm.prank(core);
         token.burn(user, 1, 40);
         assertEq(token.balanceOf(user, 1), 60);
     }
 
-    function testBurnNotOwnerReverts() public {
-        vm.prank(owner);
+    function testBurnNotCoreReverts() public {
+        vm.prank(core);
         token.mint(user, 1, 100, "");
-        address attacker = address(0xBEEF);
-        vm.prank(attacker);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "OwnableUnauthorizedAccount(address)",
-                attacker
-            )
-        );
+        vm.prank(user);
+        vm.expectRevert(WithdrawalToken.OnlyCoreCanMintOrBurn.selector);
         token.burn(user, 1, 10);
     }
 }
