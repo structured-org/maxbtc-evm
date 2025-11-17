@@ -16,7 +16,7 @@ import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract Waitosaur is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract WaitosaurHolder is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     struct WaitosaurConfig {
         address token;
         address locker;

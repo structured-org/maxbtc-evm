@@ -4,7 +4,7 @@ pragma solidity >=0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
 
-import "../src/Waitosaur.sol" as waitosaurSrc;
+import "../src/WaitosaurHolder.sol" as waitosaurSrc;
 import {
     ERC1967Proxy
 } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -57,8 +57,8 @@ contract MockERC20 {
     }
 }
 
-contract WaitosaurTest is Test {
-    waitosaurSrc.Waitosaur public waitosaur;
+contract WaitosaurHolderTest is Test {
+    waitosaurSrc.WaitosaurHolder public waitosaur;
     MockERC20 public token;
     address public owner = address(0x1);
     address public locker = address(0x2);
@@ -69,10 +69,10 @@ contract WaitosaurTest is Test {
     function setUp() public {
         token = new MockERC20();
         // Deploy logic contract
-        waitosaurSrc.Waitosaur logic = new waitosaurSrc.Waitosaur();
+        waitosaurSrc.WaitosaurHolder logic = new waitosaurSrc.WaitosaurHolder();
         // Prepare initializer data
         bytes memory data = abi.encodeWithSelector(
-            waitosaurSrc.Waitosaur.initialize.selector,
+            waitosaurSrc.WaitosaurHolder.initialize.selector,
             owner,
             address(token),
             locker,
@@ -81,7 +81,7 @@ contract WaitosaurTest is Test {
         );
         // Deploy proxy with initializer
         ERC1967Proxy proxy = new ERC1967Proxy(address(logic), data);
-        waitosaur = waitosaurSrc.Waitosaur(address(proxy));
+        waitosaur = waitosaurSrc.WaitosaurHolder(address(proxy));
         token.mint(address(waitosaur), 1000 ether);
     }
 
@@ -116,7 +116,7 @@ contract WaitosaurTest is Test {
         vm.prank(unLocker);
         vm.expectRevert(
             abi.encodeWithSelector(
-                waitosaurSrc.Waitosaur.InsufficientBalance.selector
+                waitosaurSrc.WaitosaurHolder.InsufficientBalance.selector
             )
         );
         waitosaur.unlock();
@@ -161,15 +161,21 @@ contract WaitosaurTest is Test {
 
     function testUpdateConfigZeroAddressesRevert() public {
         vm.prank(owner);
-        vm.expectRevert(waitosaurSrc.Waitosaur.InvalidLockerAddress.selector);
+        vm.expectRevert(
+            waitosaurSrc.WaitosaurHolder.InvalidLockerAddress.selector
+        );
         waitosaur.updateConfig(address(0), unLocker, receiver);
 
         vm.prank(owner);
-        vm.expectRevert(waitosaurSrc.Waitosaur.InvalidUnlockerAddress.selector);
+        vm.expectRevert(
+            waitosaurSrc.WaitosaurHolder.InvalidUnlockerAddress.selector
+        );
         waitosaur.updateConfig(locker, address(0), receiver);
 
         vm.prank(owner);
-        vm.expectRevert(waitosaurSrc.Waitosaur.InvalidReceiverAddress.selector);
+        vm.expectRevert(
+            waitosaurSrc.WaitosaurHolder.InvalidReceiverAddress.selector
+        );
         waitosaur.updateConfig(locker, unLocker, address(0));
     }
 
@@ -179,8 +185,8 @@ contract WaitosaurTest is Test {
         address newReceiver = address(0x22);
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
-        emit waitosaurSrc.Waitosaur.ConfigUpdated(
-            waitosaurSrc.Waitosaur.WaitosaurConfig({
+        emit waitosaurSrc.WaitosaurHolder.ConfigUpdated(
+            waitosaurSrc.WaitosaurHolder.WaitosaurConfig({
                 token: address(token),
                 locker: newLocker,
                 unLocker: newUnLocker,
@@ -199,7 +205,7 @@ contract WaitosaurTest is Test {
 
         // Old locker should fail
         vm.prank(locker);
-        vm.expectRevert(waitosaurSrc.Waitosaur.NotLocker.selector);
+        vm.expectRevert(waitosaurSrc.WaitosaurHolder.NotLocker.selector);
         waitosaur.lock(1 ether);
 
         // New locker should succeed
@@ -209,7 +215,7 @@ contract WaitosaurTest is Test {
 
         // Old unLocker should fail
         vm.prank(unLocker);
-        vm.expectRevert(waitosaurSrc.Waitosaur.NotUnLocker.selector);
+        vm.expectRevert(waitosaurSrc.WaitosaurHolder.NotUnLocker.selector);
         waitosaur.unlock();
 
         // New unLocker should succeed
