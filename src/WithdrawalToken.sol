@@ -22,7 +22,6 @@ import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 contract WithdrawalToken is
     Initializable,
     ERC1155Upgradeable,
-    ERC1155BurnableUpgradeable,
     OwnableUpgradeable,
     UUPSUpgradeable
 {
@@ -57,7 +56,7 @@ contract WithdrawalToken is
     }
 
     function symbol(uint256 id) public pure returns (string memory) {
-        return string(abi.encodePacked("WRT-", id.toString()));
+        return string.concat("WRT-", id.toString());
     }
 
     function mint(
@@ -69,31 +68,9 @@ contract WithdrawalToken is
         _mint(to, id, amount, data);
     }
 
-    function mintBatch(
-        address,
-        uint256[] calldata,
-        uint256[] calldata,
-        bytes calldata
-    ) external pure {
-        revert("mintBatch is disabled");
-    }
-
-    function burn(
-        address from,
-        uint256 id,
-        uint256 amount
-    ) public override onlyOwner {
+    function burn(address from, uint256 id, uint256 amount) public onlyOwner {
         _burn(from, id, amount);
     }
-
-    function burnBatch(
-        address,
-        uint256[] memory,
-        uint256[] memory
-    ) public pure override {
-        revert("burnBatch is disabled");
-    }
-
     error InvalidImplementation();
 
     /// @inheritdoc UUPSUpgradeable
@@ -101,6 +78,4 @@ contract WithdrawalToken is
         address
     ) internal view override(UUPSUpgradeable) onlyOwner {}
     // solhint-disable-previous-line no-empty-blocks
-
-    uint256[50] private __gap;
 }

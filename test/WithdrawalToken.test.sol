@@ -37,18 +37,6 @@ contract WithdrawalTokenTest is Test {
         assertEq(token.balanceOf(user, 1), 100);
     }
 
-    function testMintBatchByOwnerReverts() public {
-        uint256[] memory ids = new uint256[](2);
-        uint256[] memory amounts = new uint256[](2);
-        ids[0] = 1;
-        ids[1] = 2;
-        amounts[0] = 50;
-        amounts[1] = 150;
-        vm.prank(owner);
-        vm.expectRevert(bytes("mintBatch is disabled"));
-        token.mintBatch(user, ids, amounts, "");
-    }
-
     function testMintNotOwnerReverts() public {
         vm.expectRevert(
             abi.encodeWithSignature(
@@ -59,14 +47,6 @@ contract WithdrawalTokenTest is Test {
         token.mint(user, 1, 1, "");
     }
 
-    function testMintBatchNotOwnerReverts() public {
-        uint256[] memory ids = new uint256[](1);
-        uint256[] memory amounts = new uint256[](1);
-        ids[0] = 1;
-        amounts[0] = 1;
-        vm.expectRevert(bytes("mintBatch is disabled"));
-        token.mintBatch(user, ids, amounts, "");
-    }
     function testBurnByOwner() public {
         vm.prank(owner);
         token.mint(user, 1, 100, "");
@@ -75,19 +55,6 @@ contract WithdrawalTokenTest is Test {
         vm.prank(owner);
         token.burn(user, 1, 40);
         assertEq(token.balanceOf(user, 1), 60);
-    }
-
-    function testBurnBatchByOwnerReverts() public {
-        uint256[] memory ids = new uint256[](2);
-        uint256[] memory amounts = new uint256[](2);
-        ids[0] = 1;
-        ids[1] = 2;
-        amounts[0] = 50;
-        amounts[1] = 150;
-        vm.prank(owner);
-        vm.expectRevert(bytes("mintBatch is disabled"));
-        token.mintBatch(user, ids, amounts, "");
-        // burnBatch cannot be tested for revert if mintBatch is disabled
     }
 
     function testBurnNotOwnerReverts() public {
@@ -102,18 +69,5 @@ contract WithdrawalTokenTest is Test {
             )
         );
         token.burn(user, 1, 10);
-    }
-
-    function testBurnBatchNotOwnerOrApprovedReverts() public {
-        uint256[] memory ids = new uint256[](2);
-        uint256[] memory amounts = new uint256[](2);
-        ids[0] = 1;
-        ids[1] = 2;
-        amounts[0] = 50;
-        amounts[1] = 150;
-        vm.prank(owner);
-        vm.expectRevert(bytes("mintBatch is disabled"));
-        token.mintBatch(user, ids, amounts, "");
-        // burnBatch cannot be tested for revert if mintBatch is disabled
     }
 }
