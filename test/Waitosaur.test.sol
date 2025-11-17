@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.25;
+pragma solidity >=0.8.28;
 
 import {Test} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
+
 import "../src/Waitosaur.sol" as waitosaurSrc;
 import {
     ERC1967Proxy
@@ -12,7 +14,13 @@ contract MockERC20 {
     string public symbol = "MTK";
     uint8 public decimals = 18;
     uint256 public totalSupply;
-    mapping(address user => uint256 amount) public balanceOf;
+    mapping(address user => uint256 amount) private _balanceOf;
+
+    // For compatibility with Waitosaur's low-level call and for direct access
+    function balanceOf(address user) external view returns (uint256) {
+        return _balanceOf[user];
+    }
+
     mapping(address owner => mapping(address spender => uint256 amount))
         public allowance;
 
@@ -20,14 +28,14 @@ contract MockERC20 {
     error InsufficientAllowance();
 
     function burn(address from, uint256 amount) external {
-        if (balanceOf[from] < amount) revert InsufficientBalance();
-        balanceOf[from] -= amount;
+        if (_balanceOf[from] < amount) revert InsufficientBalance();
+        _balanceOf[from] -= amount;
         totalSupply -= amount;
     }
     function transfer(address to, uint256 amount) external returns (bool) {
-        if (balanceOf[msg.sender] < amount) revert InsufficientBalance();
-        balanceOf[msg.sender] -= amount;
-        balanceOf[to] += amount;
+        if (_balanceOf[msg.sender] < amount) revert InsufficientBalance();
+        _balanceOf[msg.sender] -= amount;
+        _balanceOf[to] += amount;
         return true;
     }
     function transferFrom(
@@ -35,46 +43,21 @@ contract MockERC20 {
         address to,
         uint256 amount
     ) external returns (bool) {
-        if (balanceOf[from] < amount) revert InsufficientBalance();
+        if (_balanceOf[from] < amount) revert InsufficientBalance();
         if (allowance[from][msg.sender] < amount)
             revert InsufficientAllowance();
-        balanceOf[from] -= amount;
-        balanceOf[to] += amount;
+        _balanceOf[from] -= amount;
+        _balanceOf[to] += amount;
         allowance[from][msg.sender] -= amount;
         return true;
     }
     function mint(address to, uint256 amount) external {
-        balanceOf[to] += amount;
+        _balanceOf[to] += amount;
         totalSupply += amount;
     }
 }
 
 contract WaitosaurTest is Test {
-    function testLastLockedIsSetOnLock() public {
-        vm.prank(locker);
-        uint256 before = block.timestamp;
-        waitosaur.lock(100 ether);
-        uint256 lockedTs = waitosaur.lastLocked();
-        // Should be >= before and <= now
-        assertGe(lockedTs, before);
-        assertLe(lockedTs, block.timestamp);
-    }
-
-    function testUnlockFailsIfLowBalance() public {
-        vm.prank(locker);
-        waitosaur.lock(100 ether);
-        // Burn funds from contract to simulate low balance
-        token.burn(address(waitosaur), 1000 ether);
-        vm.prank(unLocker);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                waitosaurSrc.Waitosaur.InsufficientBalance.selector
-            )
-        );
-        waitosaur.unlock();
-    }
-    // (Removed duplicate state variables and test functions)
-
     waitosaurSrc.Waitosaur public waitosaur;
     MockERC20 public token;
     address public owner = address(0x1);
@@ -115,10 +98,123 @@ contract WaitosaurTest is Test {
         assertEq(token.balanceOf(address(waitosaur)), 900 ether);
     }
 
-    function testUpdateReceiver() public {
-        address newReceiver = address(0x6);
+    function testLastLockedIsSetOnLock() public {
+        vm.prank(locker);
+        uint256 before = block.timestamp;
+        waitosaur.lock(100 ether);
+        uint256 lockedTs = waitosaur.lastLocked();
+        // Should be >= before and <= now
+        assertGe(lockedTs, before);
+        assertLe(lockedTs, block.timestamp);
+    }
+
+    function testUnlockFailsIfLowBalance() public {
+        vm.prank(locker);
+        waitosaur.lock(100 ether);
+        // Burn funds from contract to simulate low balance
+        token.burn(address(waitosaur), 1000 ether);
+        vm.prank(unLocker);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                waitosaurSrc.Waitosaur.InsufficientBalance.selector
+            )
+        );
+        waitosaur.unlock();
+    }
+
+    function testOwnerCanUpdateConfig() public {
+        address newLocker = address(0x10);
+        address newUnLocker = address(0x11);
+        address newReceiver = address(0x12);
         vm.prank(owner);
-        waitosaur.updateReceiver(newReceiver);
-        assertEq(waitosaur.receiver(), newReceiver);
+        waitosaur.updateConfig(newLocker, newUnLocker, newReceiver);
+        (
+            address tokenAddr,
+            address lockerAddr,
+            address unLockerAddr,
+            address receiverAddr
+        ) = (
+                waitosaur.getConfig().token,
+                waitosaur.getConfig().locker,
+                waitosaur.getConfig().unLocker,
+                waitosaur.getConfig().receiver
+            );
+        assertEq(lockerAddr, newLocker);
+        assertEq(unLockerAddr, newUnLocker);
+        assertEq(receiverAddr, newReceiver);
+        assertEq(tokenAddr, address(token));
+    }
+
+    function testNonOwnerCannotUpdateConfig() public {
+        address newLocker = address(0x10);
+        address newUnLocker = address(0x11);
+        address newReceiver = address(0x12);
+        vm.prank(locker);
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "OwnableUnauthorizedAccount(address)",
+                locker
+            )
+        );
+        waitosaur.updateConfig(newLocker, newUnLocker, newReceiver);
+    }
+
+    function testUpdateConfigZeroAddressesRevert() public {
+        vm.prank(owner);
+        vm.expectRevert(waitosaurSrc.Waitosaur.InvalidLockerAddress.selector);
+        waitosaur.updateConfig(address(0), unLocker, receiver);
+
+        vm.prank(owner);
+        vm.expectRevert(waitosaurSrc.Waitosaur.InvalidUnlockerAddress.selector);
+        waitosaur.updateConfig(locker, address(0), receiver);
+
+        vm.prank(owner);
+        vm.expectRevert(waitosaurSrc.Waitosaur.InvalidReceiverAddress.selector);
+        waitosaur.updateConfig(locker, unLocker, address(0));
+    }
+
+    function testConfigUpdatedEventEmitted() public {
+        address newLocker = address(0x20);
+        address newUnLocker = address(0x21);
+        address newReceiver = address(0x22);
+        vm.prank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit waitosaurSrc.Waitosaur.ConfigUpdated(
+            waitosaurSrc.Waitosaur.WaitosaurConfig({
+                token: address(token),
+                locker: newLocker,
+                unLocker: newUnLocker,
+                receiver: newReceiver
+            })
+        );
+        waitosaur.updateConfig(newLocker, newUnLocker, newReceiver);
+    }
+
+    function testNewConfigUsedForLockUnlock() public {
+        address newLocker = address(0x30);
+        address newUnLocker = address(0x31);
+        address newReceiver = address(0x32);
+        vm.prank(owner);
+        waitosaur.updateConfig(newLocker, newUnLocker, newReceiver);
+
+        // Old locker should fail
+        vm.prank(locker);
+        vm.expectRevert(waitosaurSrc.Waitosaur.NotLocker.selector);
+        waitosaur.lock(1 ether);
+
+        // New locker should succeed
+        vm.prank(newLocker);
+        waitosaur.lock(1 ether);
+        assertEq(waitosaur.lockedAmount(), 1 ether);
+
+        // Old unLocker should fail
+        vm.prank(unLocker);
+        vm.expectRevert(waitosaurSrc.Waitosaur.NotUnLocker.selector);
+        waitosaur.unlock();
+
+        // New unLocker should succeed
+        vm.prank(newUnLocker);
+        waitosaur.unlock();
+        assertEq(token.balanceOf(newReceiver), 1 ether);
     }
 }
