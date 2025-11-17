@@ -22,6 +22,8 @@ contract WithdrawalToken is
     OwnableUpgradeable,
     UUPSUpgradeable
 {
+    event CoreUpdated(address indexed updater, address newCore);
+
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_token.name")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant NAME_STORAGE_SLOT =
         0x190eb2605c587c583d04f046ca87c4680dfd9f551aa34f413199ca360f03b400;
@@ -104,6 +106,7 @@ contract WithdrawalToken is
 
     function updateCoreAddress(address newCore) external onlyOwner {
         _setCoreAddress(newCore);
+        emit CoreUpdated(msg.sender, newCore);
     }
 
     /// @inheritdoc UUPSUpgradeable
