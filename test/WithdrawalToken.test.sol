@@ -11,6 +11,7 @@ contract WithdrawalTokenTest is Test {
     WithdrawalToken internal token;
     address internal owner = address(0xABCD);
     address internal core = address(0xBEEF);
+    error OwnableUnauthorizedAccount(address account);
     address internal user = address(0x1234);
 
     function setUp() public {
@@ -59,5 +60,23 @@ contract WithdrawalTokenTest is Test {
         vm.prank(user);
         vm.expectRevert(WithdrawalToken.OnlyCoreCanMintOrBurn.selector);
         token.burn(user, 1, 10);
+    }
+
+    function testUpdateCoreAddressByOwner() public {
+        address newCore = address(0xDEAD);
+        vm.prank(owner);
+        token.updateCoreAddress(newCore);
+        assertEq(token.coreAddress(), newCore);
+    }
+
+    function testUpdateCoreAddressNotOwnerReverts() public {
+        address newCore = address(0xDEAD);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OwnableUnauthorizedAccount.selector,
+                address(this)
+            )
+        );
+        token.updateCoreAddress(newCore);
     }
 }

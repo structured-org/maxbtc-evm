@@ -102,6 +102,10 @@ contract WithdrawalToken is
         _burn(from, id, amount);
     }
 
+    function updateCoreAddress(address newCore) external onlyOwner {
+        _setCoreAddress(newCore);
+    }
+
     /// @inheritdoc UUPSUpgradeable
     function _authorizeUpgrade(
         address
