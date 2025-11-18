@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity ^0.8.28;
 
 import {
     Initializable
@@ -100,7 +100,7 @@ contract WaitosaurHolder is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function lock(uint256 amount) external {
         WaitosaurConfig storage config = _getWaitosaurConfig();
-        if (msg.sender != config.locker) revert NotLocker();
+        if (_msgSender() != config.locker) revert NotLocker();
         WaitosaurState storage state = _getWaitosaurState();
         if (state.lockedAmount > 0) revert AlreadyLocked();
         if (amount == 0) revert AmountZero();
@@ -116,7 +116,7 @@ contract WaitosaurHolder is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function unlock() external {
         WaitosaurConfig storage config = _getWaitosaurConfig();
-        if (msg.sender != config.unLocker) revert NotUnLocker();
+        if (_msgSender() != config.unLocker) revert NotUnLocker();
         WaitosaurState storage state = _getWaitosaurState();
         if (state.lockedAmount == 0) revert AlreadyUnlocked();
         IERC20 tokenERC20 = IERC20(config.token);
