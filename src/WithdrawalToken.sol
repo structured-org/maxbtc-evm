@@ -116,6 +116,4 @@ contract WithdrawalToken is
     ) internal override(ERC1155SupplyUpgradeable, ERC1155Upgradeable) {
         super._update(from, to, ids, values);
     }
-
-    uint256[50] private __gap;
 }
