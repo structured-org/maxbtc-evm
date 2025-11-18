@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {WithdrawalManager, ICoreContract} from "../src/WithdrawalManager.sol";
@@ -12,7 +13,7 @@ contract MockWBTC {
     string public name;
     string public symbol;
 
-    uint8 public constant decimals = 8;
+    uint8 public constant DECIMALS = 8;
 
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
@@ -93,6 +94,7 @@ contract MockCore is ICoreContract {
 
     function setCollectedAmount(uint256 batchId, uint256 amount) external {
         _batches[batchId].collectedAmount = amount;
+        _batches[batchId].batchId = batchId;
     }
 
     function finalizedBatch(
@@ -133,7 +135,13 @@ contract WithdrawalManagerTest is Test {
         WithdrawalToken tokenImpl = new WithdrawalToken();
         bytes memory tokenInitData = abi.encodeCall(
             WithdrawalToken.initialize,
-            (owner, "https://api.example.com/", "WithdrawalToken")
+            (
+                owner,
+                address(core),
+                "https://api.example.com/",
+                "WithdrawalToken",
+                "WRT"
+            )
         );
         ERC1967Proxy tokenProxy = new ERC1967Proxy(
             address(tokenImpl),
@@ -157,7 +165,7 @@ contract WithdrawalManagerTest is Test {
         wbtc.mint(address(manager), collectedAmount);
 
         // заминтить пользователю 1 токен реденшена в батче BATCH_ID
-        vm.prank(owner);
+        vm.prank(address(core));
         token.mint(user, BATCH_ID, 1, "");
     }
 
@@ -179,7 +187,6 @@ contract WithdrawalManagerTest is Test {
         assertEq(userBalanceBefore, 0);
         assertEq(paidBefore, 0);
 
-        // перевод 1 токена реденшена на WithdrawalManager
         vm.prank(user);
         token.safeTransferFrom(user, address(manager), BATCH_ID, 1, "");
 
@@ -187,12 +194,10 @@ contract WithdrawalManagerTest is Test {
         uint256 userBalanceAfter = wbtc.balanceOf(user);
         uint256 paidAfter = manager.getPaidAmount(BATCH_ID);
 
-        // вся сумма из батча должна быть выплачена пользователю
         assertEq(userBalanceAfter, 1_000_000_000);
         assertEq(managerBalanceAfter, managerBalanceBefore - 1_000_000_000);
         assertEq(paidAfter, 1_000_000_000);
 
-        // токены реденшена пользователя сожжены
         assertEq(token.balanceOf(user, BATCH_ID), 0);
         assertEq(token.totalSupply(BATCH_ID), 0);
     }
@@ -235,11 +240,8 @@ contract WithdrawalManagerTest is Test {
     }
 
     function testOnERC1155BatchReceivedReverts() public {
-        uint256[] memory ids;
-        uint256[] memory amounts;
-
-        ids[0] = BATCH_ID;
-        amounts[0] = 1;
+        uint256[] memory ids = new uint256[](BATCH_ID);
+        uint256[] memory amounts = new uint256[](1);
 
         vm.expectRevert(
             abi.encodeWithSelector(

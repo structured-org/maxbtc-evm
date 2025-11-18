@@ -97,9 +97,6 @@ contract WithdrawalManager is
             InvalidWithdrawalToken()
         );
 
-        uint256 newPaidAmount = getPaidAmount(batchId) + value;
-        _setPaidAmount(batchId, newPaidAmount);
-
         Batch memory finalizedBatch = ICoreContract(config.coreContract)
             .finalizedBatch(batchId);
 
@@ -122,7 +119,7 @@ contract WithdrawalManager is
 
         SafeERC20.safeTransfer(IERC20(config.wbtcContract), from, userBtc);
 
-        withdrawalToken.burn(from, batchId, value);
+        withdrawalToken.burn(address(this), batchId, value);
 
         return this.onERC1155Received.selector;
     }
