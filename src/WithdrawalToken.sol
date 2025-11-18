@@ -36,10 +36,10 @@ contract WithdrawalToken is
 
     using Strings for uint256;
 
-    error OnlyCoreCanMintOrBurn();
+    error OnlyCoreCanMint();
 
     modifier onlyCore() {
-        require(_msgSender() == coreAddress(), OnlyCoreCanMintOrBurn());
+        require(_msgSender() == coreAddress(), OnlyCoreCanMint());
         _;
     }
 

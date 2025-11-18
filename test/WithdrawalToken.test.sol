@@ -40,7 +40,7 @@ contract WithdrawalTokenTest is Test {
     }
 
     function testMintNotCoreReverts() public {
-        vm.expectRevert(WithdrawalToken.OnlyCoreCanMintOrBurn.selector);
+        vm.expectRevert(WithdrawalToken.OnlyCoreCanMint.selector);
         token.mint(user, 1, 1, "");
     }
 
