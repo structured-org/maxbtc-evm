@@ -2,22 +2,26 @@
 // Copyright (c) 2024 COSMOS
 // Copyright (c) 2025 Structured
 // Modifications by Structured:
-//   - renamed contract to MaxBTCERC20
+//   - rename contract to MaxBTCERC20
 //   - set decimals() to 8
 //   - remove decimals() @dev docstring
 //   - replace config with dedicated ICS20 storage slot
+//   - disable renounceOwnership()
 pragma solidity ^0.8.28;
 
 import { IMintableAndBurnable } from "./IMintableAndBurnable.sol";
 import { ERC20Upgradeable } from "@openzeppelin-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts/proxy/utils/UUPSUpgradeable.sol";
-import { OwnableUpgradeable } from "@openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
+import { Ownable2StepUpgradeable } from "@openzeppelin-upgradeable/access/Ownable2StepUpgradeable.sol";
 import { StorageSlot } from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
-contract MaxBTCERC20 is IMintableAndBurnable, UUPSUpgradeable, ERC20Upgradeable, OwnableUpgradeable {
+contract MaxBTCERC20 is IMintableAndBurnable, UUPSUpgradeable, ERC20Upgradeable, Ownable2StepUpgradeable {
     /// @notice Caller is not the ICS20 contract
     /// @param caller The address of the caller
     error CallerIsNotICS20(address caller);
+
+    /// @notice Provided ICS20 address is invalid
+    error InvalidICS20();
 
     /// @notice ERC-7201 slot for the ICS20 contract address
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.erc20.ics20")) - 1)) & ~bytes32(uint256(0xff))
@@ -46,6 +50,10 @@ contract MaxBTCERC20 is IMintableAndBurnable, UUPSUpgradeable, ERC20Upgradeable,
         __ERC20_init(name_, symbol_);
         __Ownable_init(owner_);
 
+        if (ics20_ == address(0)) {
+            revert InvalidICS20();
+        }
+
         StorageSlot.getAddressSlot(ICS20_STORAGE_SLOT).value = ics20_;
     }
 
@@ -73,6 +81,12 @@ contract MaxBTCERC20 is IMintableAndBurnable, UUPSUpgradeable, ERC20Upgradeable,
     /// @inheritdoc UUPSUpgradeable
     function _authorizeUpgrade(address) internal view override(UUPSUpgradeable) onlyOwner { }
     // solhint-disable-previous-line no-empty-blocks
+
+    /// @notice prevents `owner` from renouncing ownership and potentially locking assets forever
+    /// @dev overrides OwnableUpgradeable's renounceOwnership to always revert
+    function renounceOwnership() public view override onlyOwner {
+        revert("Renouncing ownership disabled!");
+    }
 
     /// @notice Modifier to check if the caller is the ICS20 contract
     modifier onlyICS20() {
