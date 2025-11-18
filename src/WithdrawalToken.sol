@@ -39,7 +39,7 @@ contract WithdrawalToken is
     error OnlyCoreCanMintOrBurn();
 
     modifier onlyCore() {
-        require(msg.sender == coreAddress(), OnlyCoreCanMintOrBurn());
+        require(_msgSender() == coreAddress(), OnlyCoreCanMintOrBurn());
         _;
     }
 
@@ -100,7 +100,7 @@ contract WithdrawalToken is
         _mint(to, id, amount, data);
     }
 
-    function burn(address from, uint256 id, uint256 amount) public onlyCore {
+    function burn(address from, uint256 id, uint256 amount) public {
         _burn(from, id, amount);
     }
 

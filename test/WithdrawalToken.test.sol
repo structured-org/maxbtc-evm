@@ -44,22 +44,14 @@ contract WithdrawalTokenTest is Test {
         token.mint(user, 1, 1, "");
     }
 
-    function testBurnByCore() public {
+    function testBurn() public {
         vm.prank(core);
         token.mint(user, 1, 100, "");
         assertEq(token.balanceOf(user, 1), 100);
-        // Only core can burn
-        vm.prank(core);
+        // Anyone can burn
+        vm.prank(user);
         token.burn(user, 1, 40);
         assertEq(token.balanceOf(user, 1), 60);
-    }
-
-    function testBurnNotCoreReverts() public {
-        vm.prank(core);
-        token.mint(user, 1, 100, "");
-        vm.prank(user);
-        vm.expectRevert(WithdrawalToken.OnlyCoreCanMintOrBurn.selector);
-        token.burn(user, 1, 10);
     }
 
     function testUpdateCoreAddressByOwner() public {
