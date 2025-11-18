@@ -33,7 +33,6 @@ contract WithdrawalManager is
     }
 
     // Custom errors
-    error NotUnLocker();
     error InvalidCoreContractAddress();
     error InvalidwBTCContractAddress();
     error InvalidWithdrawalTokenContractAddress();
