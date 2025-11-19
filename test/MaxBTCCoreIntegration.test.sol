@@ -11,11 +11,10 @@ import {MaxBTCERC20} from "../src/MaxBTCERC20.sol";
 import {WithdrawalToken} from "../src/WithdrawalToken.sol";
 import {WithdrawalManager} from "../src/WithdrawalManager.sol";
 import {WaitosaurHolder} from "../src/WaitosaurHolder.sol";
-import {WaitosaurBase} from "../src/WaitosaurBase.sol";
 import {WaitosaurObserver, IAumOracle} from "../src/WaitosaurObserver.sol";
+import {Allowlist} from "../src/Allowlist.sol";
 import {FeeCollector} from "../src/FeeCollector.sol";
 import {Receiver} from "../src/Receiver.sol";
-import {IAllowlist} from "../src/types/IAllowlist.sol";
 import {Batch} from "../src/types/CoreTypes.sol";
 
 /// @notice Lightweight mock ERC20 with configurable decimals for WBTC-like asset.
@@ -36,19 +35,6 @@ contract MockERC20 is ERC20 {
 
     function decimals() public view override returns (uint8) {
         return _DECIMALS;
-    }
-}
-
-/// @notice Minimal allowlist mock used by the core contract.
-contract MockAllowlist is IAllowlist {
-    mapping(address => bool) public allowed;
-
-    function setAllowed(address account, bool isAllowed) external {
-        allowed[account] = isAllowed;
-    }
-
-    function isAddressAllowed(address account) external view returns (bool) {
-        return allowed[account];
     }
 }
 
@@ -85,7 +71,7 @@ contract MaxBTCCoreIntegrationTest is Test {
     MockAumOracle private oracle;
     Receiver private provider;
     MockERC20 private wbtc;
-    MockAllowlist private allowlist;
+    Allowlist private allowlist;
 
     address private constant USER = address(0xA11CE);
     address private constant OWNER = address(0x0B0B);
@@ -107,8 +93,13 @@ contract MaxBTCCoreIntegrationTest is Test {
 
         wbtc = new MockERC20("WBTC", "WBTC", 8);
         provider = new Receiver(address(this));
-        allowlist = new MockAllowlist();
-        allowlist.setAllowed(USER, true);
+        Allowlist allowlistImpl = new Allowlist();
+        ERC1967Proxy allowlistProxy = new ERC1967Proxy(
+            address(allowlistImpl),
+            abi.encodeCall(Allowlist.initialize, (address(this)))
+        );
+        allowlist = Allowlist(address(allowlistProxy));
+        allowlist.allow(_arr(USER));
         oracle = new MockAumOracle();
         oracle.setBalance(type(uint256).max);
         // Seed ER for fee collector baseline
@@ -400,7 +391,7 @@ contract MaxBTCCoreIntegrationTest is Test {
     }
 
     function testAllowlistEndToEnd() external {
-        allowlist.setAllowed(USER, false);
+        allowlist.deny(_arr(USER));
         wbtc.mint(USER, 1e8);
         vm.startPrank(USER);
         wbtc.approve(address(core), 1e8);
@@ -659,7 +650,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.stopPrank();
 
         // Disallow user blocks further deposits
-        allowlist.setAllowed(USER, false);
+        allowlist.deny(_arr(USER));
         vm.startPrank(USER);
         vm.expectRevert(
             abi.encodeWithSelector(MaxBTCCore.AddressNotAllowed.selector, USER)
@@ -668,7 +659,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.stopPrank();
 
         // Re-allow and withdraw works
-        allowlist.setAllowed(USER, true);
+        allowlist.allow(_arr(USER));
         vm.prank(USER);
         core.withdraw(5e7);
         vm.prank(OPERATOR);
@@ -812,7 +803,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         // Two users deposit
         address user1 = USER;
         address user2 = address(0xB0B0);
-        allowlist.setAllowed(user2, true);
+        allowlist.allow(_arr(user2));
         wbtc.mint(user1, depositAmount);
         wbtc.mint(user2, depositAmount);
         vm.startPrank(user1);
@@ -880,5 +871,10 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.prank(OPERATOR);
         vm.expectRevert(MaxBTCCore.WaitosaurLocked.selector);
         core.tick();
+    }
+
+    function _arr(address a) private pure returns (address[] memory arr) {
+        arr = new address[](1);
+        arr[0] = a;
     }
 }

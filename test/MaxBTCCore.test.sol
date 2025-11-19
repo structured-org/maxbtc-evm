@@ -7,9 +7,9 @@ import {MaxBTCCore} from "../src/MaxBTCCore.sol";
 import {MaxBTCERC20} from "../src/MaxBTCERC20.sol";
 import {WithdrawalToken} from "../src/WithdrawalToken.sol";
 import {WaitosaurHolder} from "../src/WaitosaurHolder.sol";
+import {Allowlist} from "../src/Allowlist.sol";
 import {Receiver} from "../src/Receiver.sol";
 import {Batch} from "../src/types/CoreTypes.sol";
-import {IAllowlist} from "../src/types/IAllowlist.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MockERC20 is ERC20 {
@@ -29,18 +29,6 @@ contract MockERC20 is ERC20 {
 
     function decimals() public view override returns (uint8) {
         return _DECIMALS;
-    }
-}
-
-contract MockAllowlist is IAllowlist {
-    mapping(address => bool) public allowed;
-
-    function setAllowed(address account, bool allowed_) external {
-        allowed[account] = allowed_;
-    }
-
-    function isAddressAllowed(address account) external view returns (bool) {
-        return allowed[account];
     }
 }
 
@@ -74,7 +62,7 @@ contract MaxBTCCoreTest is Test {
     WaitosaurHolder private waitosaurHolder;
     Receiver private provider;
     MockERC20 private depositToken;
-    MockAllowlist private allowlist;
+    Allowlist private allowlist;
     MockWaitosaurObserver private waitosaurObserver;
 
     address private constant USER = address(0xA11CE);
@@ -93,7 +81,12 @@ contract MaxBTCCoreTest is Test {
         WaitosaurHolder waitosaurHolderImpl = new WaitosaurHolder();
         provider = new Receiver(address(this));
         depositToken = new MockERC20("WBTC", "WBTC", 8);
-        allowlist = new MockAllowlist();
+        Allowlist allowlistImpl = new Allowlist();
+        ERC1967Proxy allowlistProxy = new ERC1967Proxy(
+            address(allowlistImpl),
+            abi.encodeCall(Allowlist.initialize, (address(this)))
+        );
+        allowlist = Allowlist(address(allowlistProxy));
         waitosaurObserver = new MockWaitosaurObserver();
 
         ERC1967Proxy maxbtcProxy = new ERC1967Proxy(address(maxbtcImpl), "");
@@ -161,10 +154,13 @@ contract MaxBTCCoreTest is Test {
             "Redemption",
             "rMAX-"
         );
-        waitosaurHolder.updateRoles(OPERATOR, address(core));
-        waitosaurHolder.updateConfig(WITHDRAWAL_MANAGER);
+        waitosaurHolder.updateConfig(
+            OPERATOR,
+            address(core),
+            WITHDRAWAL_MANAGER
+        );
 
-        allowlist.setAllowed(USER, true);
+        allowlist.allow(_arr(USER));
     }
 
     function testDepositMintsWithFeeAndAllowlist() external {
@@ -211,7 +207,7 @@ contract MaxBTCCoreTest is Test {
     }
 
     function testDepositRejectsNotAllowlisted() external {
-        allowlist.setAllowed(USER, false);
+        allowlist.deny(_arr(USER));
         _publishRate(1e18);
         depositToken.mint(USER, 1e8);
         vm.startPrank(USER);
@@ -467,7 +463,7 @@ contract MaxBTCCoreTest is Test {
     }
 
     function testWithdrawNotAllowlistedReverts() external {
-        allowlist.setAllowed(USER, false);
+        allowlist.deny(_arr(USER));
         vm.expectRevert(
             abi.encodeWithSelector(MaxBTCCore.AddressNotAllowed.selector, USER)
         );
@@ -511,5 +507,10 @@ contract MaxBTCCoreTest is Test {
             int256(depositToken.totalSupply()),
             depositToken.decimals()
         );
+    }
+
+    function _arr(address a) private pure returns (address[] memory arr) {
+        arr = new address[](1);
+        arr[0] = a;
     }
 }
