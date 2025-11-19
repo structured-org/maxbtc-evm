@@ -7,8 +7,6 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {console2} from "forge-std/console2.sol";
-
 interface ITwaerProvider {
     /// Returns current exchange rate (twaer) and timestamp of publication.
     /// twaer is represented as fixed-point 1e18.
@@ -111,9 +109,6 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         uint256 nextAllowed = uint256(st.lastCollectionTimestamp) +
             uint256(config.collectionPeriodSeconds);
-
-        console2.log("nextAllowed:", nextAllowed);
-        console2.log("block.timestamp:", block.timestamp);
 
         if (block.timestamp < nextAllowed) {
             revert CollectionPeriodNotElapsed();
