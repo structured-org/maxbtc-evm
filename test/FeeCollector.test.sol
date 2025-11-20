@@ -10,7 +10,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 contract MockERC20 {
     string public name;
     string public symbol;
-    uint8 public immutable decimals;
+    uint8 public immutable DECIMALS;
 
     uint256 public totalSupply;
     mapping(address => uint256) public balanceOf;
@@ -19,7 +19,7 @@ contract MockERC20 {
     constructor(string memory name_, string memory symbol_, uint8 decimals_) {
         name = name_;
         symbol = symbol_;
-        decimals = decimals_;
+        DECIMALS = decimals_;
     }
 
     function mint(address to, uint256 amount) external {
@@ -145,7 +145,7 @@ contract FeeCollectorTest is Test {
     }
 
     function setUp() public {
-        maxbtc = new MockERC20("MaxBTC", "maxBTC", 6);
+        maxbtc = new MockERC20("MaxBTC", "maxBTC", 8);
         core = new MockCore();
 
         // Main proxy for normal-path tests
@@ -155,7 +155,7 @@ contract FeeCollectorTest is Test {
             0.1e18, // 10% APY reduction as fee
             3600, // 1 hour collection period
             address(maxbtc),
-            6 // 6 decimals for maxBTC
+            8 // 8 decimals for maxBTC
         );
 
         core.setFeeToken(maxbtc, address(feeCollector));
@@ -193,7 +193,7 @@ contract FeeCollectorTest is Test {
             0.1e18,
             3600,
             address(maxbtc),
-            6
+            8
         );
         vm.expectRevert(FeeCollector.InvalidOwnerAddress.selector);
         new ERC1967Proxy(address(impl), data);
@@ -208,7 +208,7 @@ contract FeeCollectorTest is Test {
             0.1e18,
             3600,
             address(maxbtc),
-            6
+            8
         );
         vm.expectRevert(FeeCollector.InvalidCoreContractAddress.selector);
         new ERC1967Proxy(address(impl), data);
@@ -223,7 +223,7 @@ contract FeeCollectorTest is Test {
             0.1e18,
             3600,
             address(0), // invalid token
-            6
+            8
         );
         vm.expectRevert(FeeCollector.InvalidFeeTokenAddress.selector);
         new ERC1967Proxy(address(impl), data);
@@ -238,7 +238,7 @@ contract FeeCollectorTest is Test {
             0, // invalid
             3600,
             address(maxbtc),
-            6
+            8
         );
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
         new ERC1967Proxy(address(impl), data);
@@ -253,7 +253,7 @@ contract FeeCollectorTest is Test {
             ONE, // >= 1.0 invalid
             3600,
             address(maxbtc),
-            6
+            8
         );
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
         new ERC1967Proxy(address(impl), data);
@@ -290,7 +290,7 @@ contract FeeCollectorTest is Test {
             "collection period mismatch"
         );
         assertEq(address(cfg.feeToken), address(maxbtc), "fee token mismatch");
-        assertEq(cfg.maxbtcDecimals, 6, "decimals mismatch");
+        assertEq(cfg.maxbtcDecimals, 8, "decimals mismatch");
 
         (uint256 coreRate, uint64 coreTs) = core.getTwaer();
         assertEq(st.lastExchangeRate, coreRate, "lastExchangeRate mismatch");
@@ -349,7 +349,7 @@ contract FeeCollectorTest is Test {
     }
 
     function testCollectFeeMintsAndUpdatesState() public {
-        maxbtc.mint(address(0xCAFE), 1_000_000 * 10 ** 6);
+        maxbtc.mint(address(0xCAFE), 1_000_000 * 10 ** 8);
 
         vm.warp(block.timestamp + 4000);
 
@@ -427,7 +427,7 @@ contract FeeCollectorTest is Test {
 
     function testCollectFeeSecondCallBeforePeriodReverts() public {
         // First successful collect
-        maxbtc.mint(address(0xCAFE), 1_000_000 * 10 ** 6);
+        maxbtc.mint(address(0xCAFE), 1_000_000 * 10 ** 8);
 
         vm.warp(block.timestamp + 4000);
         uint256 oldRate = core.twaer();
@@ -445,7 +445,7 @@ contract FeeCollectorTest is Test {
 
     function testCollectFeeSecondCallAfterPeriodSucceeds() public {
         // First successful collect
-        maxbtc.mint(address(0xCAFE), 1_000_000 * 10 ** 6);
+        maxbtc.mint(address(0xCAFE), 1_000_000 * 10 ** 8);
 
         vm.warp(block.timestamp + 4000);
         uint256 rate1 = core.twaer();
@@ -496,7 +496,7 @@ contract FeeCollectorTest is Test {
     }
 
     function testClaimRevertsOnZeroRecipient() public {
-        vm.expectRevert(FeeCollector.InvalidOwnerAddress.selector);
+        vm.expectRevert(FeeCollector.InvalidRecipientAddress.selector);
         feeCollector.claim(1, address(0));
     }
 
@@ -636,7 +636,7 @@ contract FeeCollectorTest is Test {
             0.1e18,
             3600,
             address(maxbtc),
-            6
+            8
         );
     }
 
@@ -650,7 +650,7 @@ contract FeeCollectorTest is Test {
             0.1e18,
             3600,
             address(maxbtc),
-            6
+            8
         );
 
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), data);
@@ -678,7 +678,7 @@ contract FeeCollectorTest is Test {
             0.1e18,
             3600,
             address(maxbtc),
-            6
+            8
         );
 
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), data);

@@ -47,6 +47,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     // Errors
     error InvalidOwnerAddress();
+    error InvalidRecipientAddress();
     error InvalidCoreContractAddress();
     error InvalidFeeTokenAddress();
     error InvalidFeeReductionPercentage();
@@ -123,7 +124,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert NegativeOrZeroApy(currentRate, st.lastExchangeRate);
         }
 
-        uint256 toMint = _calculateFeeToMint(
+        uint256 toMint = calculateFeeToMint(
             st.lastExchangeRate,
             currentRate,
             totalSupply,
@@ -143,7 +144,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function claim(uint256 amount, address recipient) external onlyOwner {
         if (amount == 0) revert InvalidZeroAmount();
-        if (recipient == address(0)) revert InvalidOwnerAddress();
+        if (recipient == address(0)) revert InvalidRecipientAddress();
 
         Config storage config = _getConfig();
         config.feeToken.safeTransfer(recipient, amount);
@@ -198,13 +199,13 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function _calculateFeeToMint(
+    function calculateFeeToMint(
         uint256 rateOld,
         uint256 rateCurrent,
         uint256 totalSupplyCurrent,
         uint256 feeReductionPercentage,
         uint8 maxbtcDecimals
-    ) internal pure returns (uint256) {
+    ) public pure returns (uint256) {
         if (rateCurrent <= rateOld) return 0;
         if (maxbtcDecimals > 18) revert InvalidDecimalConversion();
 
@@ -220,12 +221,8 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         uint256 factor = rateRatio - ONE;
 
-        uint256 scale = 18 - uint256(maxbtcDecimals);
-        uint256 supplyScaled = totalSupplyCurrent * (10 ** scale);
+        uint256 feeAtomic = (factor * totalSupplyCurrent) / ONE;
 
-        uint256 feeDecimal = (factor * supplyScaled) / ONE;
-
-        uint256 feeAtomic = feeDecimal / (10 ** scale);
         return feeAtomic;
     }
 
