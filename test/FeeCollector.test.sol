@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {FeeCollector, ITwaerProvider, ICoreContract} from "../src/FeeCollector.sol"; // adjust the path if needed
+import {FeeCollector, IReceiver, ICoreContract} from "../src/FeeCollector.sol"; // adjust the path if needed
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /// Minimal ERC20 token used as fee token (maxBTC)
@@ -66,10 +66,10 @@ contract MockERC20 {
     );
 }
 
-/// Mock core contract implementing ITwaerProvider + ICoreContract.
-contract MockCore is ITwaerProvider, ICoreContract {
-    uint256 public twaer;
-    uint64 public publishedAt;
+/// Mock core contract implementing IReceiver + ICoreContract.
+contract MockCore is IReceiver, ICoreContract {
+    uint256 public exchangeRate;
+    uint256 public publishedAt;
 
     uint256 public lastMintedAmount;
 
@@ -78,13 +78,13 @@ contract MockCore is ITwaerProvider, ICoreContract {
 
     constructor() {
         // default rate = 1.0 * 1e18
-        twaer = 1e18;
-        publishedAt = uint64(block.timestamp);
+        exchangeRate = 1e18;
+        publishedAt = block.timestamp;
     }
 
     function setRate(uint256 newRate) external {
-        twaer = newRate;
-        publishedAt = uint64(block.timestamp);
+        exchangeRate = newRate;
+        publishedAt = block.timestamp;
     }
 
     function setFeeToken(MockERC20 token, address recipient) external {
@@ -92,8 +92,8 @@ contract MockCore is ITwaerProvider, ICoreContract {
         feeRecipient = recipient;
     }
 
-    function getTwaer() external view override returns (uint256, uint64) {
-        return (twaer, publishedAt);
+    function getLatest() external view override returns (uint256, uint256) {
+        return (exchangeRate, publishedAt);
     }
 
     function mintFee(uint256 amount) external override {
@@ -292,7 +292,7 @@ contract FeeCollectorTest is Test {
         assertEq(address(cfg.feeToken), address(maxbtc), "fee token mismatch");
         assertEq(cfg.maxbtcDecimals, 8, "decimals mismatch");
 
-        (uint256 coreRate, uint64 coreTs) = core.getTwaer();
+        (uint256 coreRate, uint256 coreTs) = core.getLatest();
         assertEq(st.lastExchangeRate, coreRate, "lastExchangeRate mismatch");
         assertEq(
             st.lastCollectionTimestamp,
@@ -313,12 +313,12 @@ contract FeeCollectorTest is Test {
     function testCollectFeeRevertsIfApyNonPositive() public {
         vm.warp(block.timestamp + 4000);
 
-        core.setRate(core.twaer());
+        core.setRate(core.exchangeRate());
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 FeeCollector.NegativeOrZeroApy.selector,
-                core.twaer(),
+                core.exchangeRate(),
                 feeCollector.getState().lastExchangeRate
             )
         );
@@ -330,7 +330,7 @@ contract FeeCollectorTest is Test {
 
         vm.warp(block.timestamp + 4000);
 
-        core.setRate(core.twaer() + 0.1e18);
+        core.setRate(core.exchangeRate() + 0.1e18);
 
         uint256 prevMinted = core.lastMintedAmount();
 
@@ -353,7 +353,7 @@ contract FeeCollectorTest is Test {
 
         vm.warp(block.timestamp + 4000);
 
-        uint256 oldRate = core.twaer();
+        uint256 oldRate = core.exchangeRate();
         uint256 newRate = oldRate + 0.2e18;
         core.setRate(newRate);
 
@@ -407,7 +407,7 @@ contract FeeCollectorTest is Test {
         FeeCollector.State memory beforeState = feeCollector.getState();
 
         vm.warp(block.timestamp + 4000);
-        core.setRate(core.twaer() + 0.1e18);
+        core.setRate(core.exchangeRate() + 0.1e18);
 
         feeCollector.collectFee();
 
@@ -430,7 +430,7 @@ contract FeeCollectorTest is Test {
         maxbtc.mint(address(0xCAFE), 1_000_000 * 10 ** 8);
 
         vm.warp(block.timestamp + 4000);
-        uint256 oldRate = core.twaer();
+        uint256 oldRate = core.exchangeRate();
         uint256 newRate = oldRate + 0.2e18;
         core.setRate(newRate);
 
@@ -448,7 +448,7 @@ contract FeeCollectorTest is Test {
         maxbtc.mint(address(0xCAFE), 1_000_000 * 10 ** 8);
 
         vm.warp(block.timestamp + 4000);
-        uint256 rate1 = core.twaer();
+        uint256 rate1 = core.exchangeRate();
         uint256 newRate1 = rate1 + 0.2e18;
         core.setRate(newRate1);
         feeCollector.collectFee();
@@ -459,7 +459,7 @@ contract FeeCollectorTest is Test {
 
         // Wait longer than collectionPeriodSeconds and increase rate again
         vm.warp(block.timestamp + 3600);
-        uint256 rate2 = core.twaer();
+        uint256 rate2 = core.exchangeRate();
         uint256 newRate2 = rate2 + 0.3e18;
         core.setRate(newRate2);
 
@@ -566,7 +566,7 @@ contract FeeCollectorTest is Test {
         newCore.setFeeToken(maxbtc, address(feeCollector));
         newCore.setRate(2e18);
 
-        uint64 beforeTs = feeCollector.getState().lastCollectionTimestamp;
+        uint256 beforeTs = feeCollector.getState().lastCollectionTimestamp;
 
         feeCollector.updateConfig(address(newCore), 0.2e18, 10_000);
 

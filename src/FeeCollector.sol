@@ -7,13 +7,10 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-interface ITwaerProvider {
-    /// Returns current exchange rate (twaer) and timestamp of publication.
-    /// twaer is represented as fixed-point 1e18.
-    function getTwaer()
-        external
-        view
-        returns (uint256 twaer, uint64 publishedAt);
+interface IReceiver {
+    /// Returns current exchange rate and timestamp of publication.
+    /// exchange rate is represented as fixed-point 1e18.
+    function getLatest() external view returns (uint256 _er, uint256 _ts);
 }
 
 interface ICoreContract {
@@ -31,7 +28,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         /// Represented in fixed-point 1e18 (1e18 = 1.0).
         uint256 feeApyReductionPercentage;
         /// Minimal time between fee collections, in seconds.
-        uint64 collectionPeriodSeconds;
+        uint256 collectionPeriodSeconds;
         /// ERC-20 fee token (maxBTC).
         IERC20 feeToken;
         /// Number of decimals of maxBTC (must be <= 18).
@@ -40,7 +37,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     struct State {
         /// Timestamp of the last successful fee collection.
-        uint64 lastCollectionTimestamp;
+        uint256 lastCollectionTimestamp;
         /// Exchange rate recorded after the last fee collection (fixed-point 1e18).
         uint256 lastExchangeRate;
     }
@@ -97,10 +94,10 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         config.feeToken = IERC20(feeToken_);
         config.maxbtcDecimals = maxbtcDecimals_;
 
-        (uint256 initialRate, ) = ITwaerProvider(coreContract_).getTwaer();
+        (uint256 initialRate, ) = IReceiver(coreContract_).getLatest();
 
         State storage st = _getState();
-        st.lastCollectionTimestamp = uint64(block.timestamp);
+        st.lastCollectionTimestamp = block.timestamp;
         st.lastExchangeRate = initialRate;
     }
 
@@ -108,15 +105,14 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         Config storage config = _getConfig();
         State storage st = _getState();
 
-        uint256 nextAllowed = uint256(st.lastCollectionTimestamp) +
-            uint256(config.collectionPeriodSeconds);
+        uint256 nextAllowed = st.lastCollectionTimestamp +
+            config.collectionPeriodSeconds;
 
         if (block.timestamp < nextAllowed) {
             revert CollectionPeriodNotElapsed();
         }
 
-        (uint256 currentRate, ) = ITwaerProvider(config.coreContract)
-            .getTwaer();
+        (uint256 currentRate, ) = IReceiver(config.coreContract).getLatest();
 
         uint256 totalSupply = config.feeToken.totalSupply();
 
@@ -168,7 +164,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         config.feeApyReductionPercentage = newFeeApyReductionPercentage;
         config.collectionPeriodSeconds = newCollectionPeriodSeconds;
 
-        (uint256 initialRate, ) = ITwaerProvider(newCoreContract).getTwaer();
+        (uint256 initialRate, ) = IReceiver(newCoreContract).getLatest();
 
         State storage st = _getState();
         st.lastCollectionTimestamp = uint64(block.timestamp);
