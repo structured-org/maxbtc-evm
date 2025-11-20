@@ -93,7 +93,7 @@ contract WithdrawalManager is
         WithdrawalManagerConfig storage config = _getWithdrawalManagerConfig();
 
         require(
-            msg.sender == address(config.withdrawalTokenContract),
+            _msgSender() == address(config.withdrawalTokenContract),
             InvalidWithdrawalToken()
         );
 
@@ -110,16 +110,15 @@ contract WithdrawalManager is
         }
 
         uint256 batchPaidAmount = getPaidAmount(batchId);
-        uint256 fraction = value / redemptionTokenSupply;
         uint256 availableBtc = finalizedBatch.collectedAmount - batchPaidAmount;
-        uint256 userBtc = availableBtc * fraction;
+        uint256 userBtc = (availableBtc * value) / redemptionTokenSupply;
 
         batchPaidAmount += userBtc;
         _setPaidAmount(batchId, batchPaidAmount);
 
-        SafeERC20.safeTransfer(IERC20(config.wbtcContract), from, userBtc);
-
         withdrawalToken.burn(address(this), batchId, value);
+
+        SafeERC20.safeTransfer(IERC20(config.wbtcContract), from, userBtc);
 
         return this.onERC1155Received.selector;
     }

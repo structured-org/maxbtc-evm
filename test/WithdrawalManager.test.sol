@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {WithdrawalManager, ICoreContract} from "../src/WithdrawalManager.sol";
@@ -411,9 +411,8 @@ contract WithdrawalManagerTest is Test {
 
         Batch memory b = core.finalizedBatch(batchId);
 
-        uint256 fraction = value / supplyBefore;
         uint256 availableBtc = b.collectedAmount - paidBefore;
-        uint256 expectedUserBtc = availableBtc * fraction;
+        uint256 expectedUserBtc = (availableBtc * value) / supplyBefore;
         uint256 expectedPaidAfter = paidBefore + expectedUserBtc;
 
         uint256 managerBalanceBefore = wbtc.balanceOf(address(manager));
@@ -472,9 +471,8 @@ contract WithdrawalManagerTest is Test {
             uint256 supplyBefore = token.totalSupply(batchId);
             uint256 value = 2;
 
-            uint256 fraction = value / supplyBefore;
             uint256 availableBtc = b.collectedAmount - paidBefore;
-            uint256 expectedUserBtc = availableBtc * fraction;
+            uint256 expectedUserBtc = (availableBtc * value) / supplyBefore;
             uint256 expectedPaidAfter = paidBefore + expectedUserBtc;
 
             uint256 managerBalanceBefore = wbtc.balanceOf(address(manager));
@@ -510,9 +508,8 @@ contract WithdrawalManagerTest is Test {
             uint256 supplyBefore = token.totalSupply(batchId);
             uint256 value = 3;
 
-            uint256 fraction = value / supplyBefore;
             uint256 availableBtc = b.collectedAmount - paidBefore;
-            uint256 expectedUserBtc = availableBtc * fraction;
+            uint256 expectedUserBtc = (availableBtc * value) / supplyBefore;
             uint256 expectedPaidAfter = paidBefore + expectedUserBtc;
 
             uint256 managerBalanceBefore = wbtc.balanceOf(address(manager));
@@ -563,13 +560,11 @@ contract WithdrawalManagerTest is Test {
 
         Batch memory b = core.finalizedBatch(batchId);
 
-        uint256 fraction = value / supplyBefore; // = 0
         uint256 availableBtc = b.collectedAmount - paidBefore;
-        uint256 expectedUserBtc = availableBtc * fraction; // = 0
-        uint256 expectedPaidAfter = paidBefore + expectedUserBtc; // = paidBefore
+        uint256 expectedUserBtc = (availableBtc * value) / supplyBefore;
+        uint256 expectedPaidAfter = paidBefore + expectedUserBtc;
 
         uint256 managerBalanceBefore = wbtc.balanceOf(address(manager));
-        uint256 userBalanceBefore = wbtc.balanceOf(tinyUser);
 
         vm.prank(tinyUser);
         token.safeTransferFrom(tinyUser, address(manager), batchId, value, "");
@@ -579,16 +574,11 @@ contract WithdrawalManagerTest is Test {
         uint256 paidAfter = manager.getPaidAmount(batchId);
         uint256 supplyAfter = token.totalSupply(batchId);
 
-        // No BTC should move due to rounding down
-        assertEq(
-            userBalanceAfter,
-            userBalanceBefore,
-            "User must not receive BTC"
-        );
+        assertEq(userBalanceAfter, expectedUserBtc, "User should receive BTC");
         assertEq(
             managerBalanceAfter,
-            managerBalanceBefore,
-            "Manager must not pay BTC"
+            managerBalanceBefore - expectedUserBtc,
+            "Manager must pay BTC"
         );
 
         // Token supply must decrease by burned value
