@@ -52,6 +52,25 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error InvalidZeroAmount();
     error InvalidErReceiverAddress();
 
+    /// @notice Emitted when fees are collected and minted to the core contract.
+    event FeeCollected(
+        uint256 mintedAmount,
+        uint256 currentExchangeRate,
+        uint256 previousExchangeRate,
+        uint256 totalSupplyBefore
+    );
+
+    /// @notice Emitted when the owner claims accumulated fees.
+    event FeeClaimed(address indexed recipient, uint256 amount);
+
+    /// @notice Emitted when configuration is updated.
+    event ConfigUpdated(
+        address coreContract,
+        address erReceiver,
+        uint256 feeApyReductionPercentage,
+        uint64 collectionPeriodSeconds
+    );
+
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.fee_collector.config")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant CONFIG_STORAGE_SLOT =
         0x55a5612efb3791db0b287c4f2521a452b64dc8c1ea03edaa7b8f0870c0bd6300;
@@ -119,8 +138,9 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert NegativeOrZeroApy(currentRate, st.lastExchangeRate);
         }
 
+        uint256 previousRate = st.lastExchangeRate;
         uint256 toMint = calculateFeeToMint(
-            st.lastExchangeRate,
+            previousRate,
             currentRate,
             totalSupply,
             config.feeApyReductionPercentage
@@ -132,8 +152,15 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         ICoreContract(config.coreContract).mintFee(toMint);
 
-        st.lastCollectionTimestamp = uint64(block.timestamp);
         st.lastExchangeRate = currentRate;
+        st.lastCollectionTimestamp = uint64(block.timestamp);
+
+        emit FeeCollected(
+            toMint,
+            currentRate,
+            previousRate,
+            totalSupply
+        );
     }
 
     function claim(uint256 amount, address recipient) external onlyOwner {
@@ -142,6 +169,8 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         Config storage config = _getConfig();
         config.feeToken.safeTransfer(recipient, amount);
+
+        emit FeeClaimed(recipient, amount);
     }
 
     function updateConfig(
@@ -164,6 +193,13 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         config.erReceiver = newErReceiver;
         config.feeApyReductionPercentage = newFeeApyReductionPercentage;
         config.collectionPeriodSeconds = newCollectionPeriodSeconds;
+
+        emit ConfigUpdated(
+            newCoreContract,
+            newErReceiver,
+            newFeeApyReductionPercentage,
+            newCollectionPeriodSeconds
+        );
     }
 
     function getConfig() external pure returns (Config memory) {

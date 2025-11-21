@@ -318,6 +318,20 @@ contract FeeCollectorTest is Test {
 
         uint256 prevTotalSupply = maxbtc.totalSupply();
         uint256 prevCollectorBalance = maxbtc.balanceOf(address(feeCollector));
+        uint256 expectedMint = feeCollector.calculateFeeToMint(
+            oldRate,
+            newRate,
+            prevTotalSupply,
+            feeCollector.getConfig().feeApyReductionPercentage
+        );
+
+        vm.expectEmit(true, true, true, true, address(feeCollector));
+        emit FeeCollector.FeeCollected(
+            expectedMint,
+            newRate,
+            oldRate,
+            prevTotalSupply
+        );
 
         feeCollector.collectFee();
 
@@ -465,6 +479,9 @@ contract FeeCollectorTest is Test {
         uint256 prevCollector = maxbtc.balanceOf(address(feeCollector));
         uint256 prevRecipient = maxbtc.balanceOf(address(0xCAFE));
 
+        vm.expectEmit(true, true, true, true, address(feeCollector));
+        emit FeeCollector.FeeClaimed(address(0xCAFE), 300);
+
         feeCollector.claim(300, address(0xCAFE));
 
         uint256 newCollector = maxbtc.balanceOf(address(feeCollector));
@@ -529,6 +546,14 @@ contract FeeCollectorTest is Test {
         MockCore newCore = new MockCore();
         newCore.setFeeToken(maxbtc, address(feeCollector));
         newCore.setRate(2e18);
+
+        vm.expectEmit(true, true, true, true, address(feeCollector));
+        emit FeeCollector.ConfigUpdated(
+            address(newCore),
+            address(core),
+            0.2e18,
+            10_000
+        );
 
         feeCollector.updateConfig(
             address(newCore),
