@@ -24,6 +24,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     struct Config {
         address coreContract;
+        address erReceiver;
         /// Percentage of APY reduction taken as protocol fee.
         /// Represented in fixed-point 1e18 (1e18 = 1.0).
         uint256 feeApyReductionPercentage;
@@ -31,8 +32,6 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 collectionPeriodSeconds;
         /// ERC-20 fee token (maxBTC).
         IERC20 feeToken;
-        /// Number of decimals of maxBTC (must be <= 18).
-        uint8 maxbtcDecimals;
     }
 
     struct State {
@@ -48,10 +47,10 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error InvalidCoreContractAddress();
     error InvalidFeeTokenAddress();
     error InvalidFeeReductionPercentage();
-    error InvalidDecimalConversion();
     error CollectionPeriodNotElapsed();
     error NegativeOrZeroApy(uint256 currentRate, uint256 lastRate);
     error InvalidZeroAmount();
+    error InvalidErReceiverAddress();
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.fee_collector.config")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant CONFIG_STORAGE_SLOT =
@@ -69,32 +68,32 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function initialize(
         address owner_,
         address coreContract_,
+        address erReceiver_,
         uint256 feeApyReductionPercentage_,
         uint64 collectionPeriodSeconds_,
-        address feeToken_,
-        uint8 maxbtcDecimals_
+        address feeToken_
     ) external initializer {
         if (owner_ == address(0)) revert InvalidOwnerAddress();
         if (coreContract_ == address(0)) revert InvalidCoreContractAddress();
+        if (erReceiver_ == address(0)) revert InvalidErReceiverAddress();
         if (feeToken_ == address(0)) revert InvalidFeeTokenAddress();
         if (
             feeApyReductionPercentage_ == 0 || feeApyReductionPercentage_ >= ONE
         ) {
             revert InvalidFeeReductionPercentage();
         }
-        if (maxbtcDecimals_ > 18) revert InvalidDecimalConversion();
 
         __Ownable_init(owner_);
         __UUPSUpgradeable_init();
 
         Config storage config = _getConfig();
         config.coreContract = coreContract_;
+        config.erReceiver = erReceiver_;
         config.feeApyReductionPercentage = feeApyReductionPercentage_;
         config.collectionPeriodSeconds = collectionPeriodSeconds_;
         config.feeToken = IERC20(feeToken_);
-        config.maxbtcDecimals = maxbtcDecimals_;
 
-        (uint256 initialRate, ) = IReceiver(coreContract_).getLatest();
+        (uint256 initialRate, ) = IReceiver(erReceiver_).getLatest();
 
         State storage st = _getState();
         st.lastCollectionTimestamp = block.timestamp;
@@ -112,7 +111,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert CollectionPeriodNotElapsed();
         }
 
-        (uint256 currentRate, ) = IReceiver(config.coreContract).getLatest();
+        (uint256 currentRate, ) = IReceiver(config.erReceiver).getLatest();
 
         uint256 totalSupply = config.feeToken.totalSupply();
 
@@ -124,8 +123,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             st.lastExchangeRate,
             currentRate,
             totalSupply,
-            config.feeApyReductionPercentage,
-            config.maxbtcDecimals
+            config.feeApyReductionPercentage
         );
 
         if (toMint == 0) {
@@ -148,10 +146,12 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function updateConfig(
         address newCoreContract,
+        address newErReceiver,
         uint256 newFeeApyReductionPercentage,
         uint64 newCollectionPeriodSeconds
     ) external onlyOwner {
         if (newCoreContract == address(0)) revert InvalidCoreContractAddress();
+        if (newErReceiver == address(0)) revert InvalidErReceiverAddress();
         if (
             newFeeApyReductionPercentage == 0 ||
             newFeeApyReductionPercentage >= ONE
@@ -161,14 +161,9 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         Config storage config = _getConfig();
         config.coreContract = newCoreContract;
+        config.erReceiver = newErReceiver;
         config.feeApyReductionPercentage = newFeeApyReductionPercentage;
         config.collectionPeriodSeconds = newCollectionPeriodSeconds;
-
-        (uint256 initialRate, ) = IReceiver(newCoreContract).getLatest();
-
-        State storage st = _getState();
-        st.lastCollectionTimestamp = uint64(block.timestamp);
-        st.lastExchangeRate = initialRate;
     }
 
     function getConfig() external pure returns (Config memory) {
@@ -199,11 +194,9 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 rateOld,
         uint256 rateCurrent,
         uint256 totalSupplyCurrent,
-        uint256 feeReductionPercentage,
-        uint8 maxbtcDecimals
+        uint256 feeReductionPercentage
     ) public pure returns (uint256) {
         if (rateCurrent <= rateOld) return 0;
-        if (maxbtcDecimals > 18) revert InvalidDecimalConversion();
 
         uint256 gain = rateCurrent - rateOld;
         uint256 retained = ONE - feeReductionPercentage;

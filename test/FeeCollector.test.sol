@@ -5,65 +5,26 @@ import {Test, console2} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeeCollector, IReceiver, ICoreContract} from "../src/FeeCollector.sol"; // adjust the path if needed
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-/// Minimal ERC20 token used as fee token (maxBTC)
-contract MockERC20 {
-    string public name;
-    string public symbol;
+contract MockERC20 is ERC20 {
     uint8 public immutable DECIMALS;
 
-    uint256 public totalSupply;
-    mapping(address => uint256) public balanceOf;
-    mapping(address => mapping(address => uint256)) public allowance;
-
-    constructor(string memory name_, string memory symbol_, uint8 decimals_) {
-        name = name_;
-        symbol = symbol_;
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_
+    ) ERC20(name_, symbol_) {
         DECIMALS = decimals_;
     }
 
+    function decimals() public view override returns (uint8) {
+        return DECIMALS;
+    }
+
     function mint(address to, uint256 amount) external {
-        totalSupply += amount;
-        balanceOf[to] += amount;
-        emit Transfer(address(0), to, amount);
+        _mint(to, amount);
     }
-
-    function approve(address spender, uint256 amount) external returns (bool) {
-        allowance[msg.sender][spender] = amount;
-        emit Approval(msg.sender, spender, amount);
-        return true;
-    }
-
-    function transfer(address to, uint256 amount) external returns (bool) {
-        _transfer(msg.sender, to, amount);
-        return true;
-    }
-
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external returns (bool) {
-        uint256 currentAllowance = allowance[from][msg.sender];
-        require(currentAllowance >= amount, "insufficient allowance");
-        allowance[from][msg.sender] = currentAllowance - amount;
-        _transfer(from, to, amount);
-        return true;
-    }
-
-    function _transfer(address from, address to, uint256 amount) internal {
-        require(balanceOf[from] >= amount, "insufficient balance");
-        balanceOf[from] -= amount;
-        balanceOf[to] += amount;
-        emit Transfer(from, to, amount);
-    }
-
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
 }
 
 /// Mock core contract implementing IReceiver + ICoreContract.
@@ -125,20 +86,20 @@ contract FeeCollectorTest is Test {
     function _deployProxyWithInit(
         address owner_,
         address core_,
+        address erReceiver_,
         uint256 feeApyReductionPercentage_,
         uint64 collectionPeriodSeconds_,
-        address feeToken_,
-        uint8 maxbtcDecimals_
+        address feeToken_
     ) internal returns (FeeCollector) {
         FeeCollector impl = new FeeCollector();
         bytes memory data = abi.encodeWithSelector(
             FeeCollector.initialize.selector,
             owner_,
             core_,
+            erReceiver_,
             feeApyReductionPercentage_,
             collectionPeriodSeconds_,
-            feeToken_,
-            maxbtcDecimals_
+            feeToken_
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), data);
         return FeeCollector(address(proxy));
@@ -152,10 +113,10 @@ contract FeeCollectorTest is Test {
         feeCollector = _deployProxyWithInit(
             owner,
             address(core),
+            address(core),
             0.1e18, // 10% APY reduction as fee
             3600, // 1 hour collection period
-            address(maxbtc),
-            8 // 8 decimals for maxBTC
+            address(maxbtc)
         );
 
         core.setFeeToken(maxbtc, address(feeCollector));
@@ -172,7 +133,6 @@ contract FeeCollectorTest is Test {
             "Initial collectionPeriodSeconds:",
             cfg.collectionPeriodSeconds
         );
-        console2.log("Initial maxbtcDecimals:", cfg.maxbtcDecimals);
         console2.log(
             "Initial lastCollectionTimestamp:",
             st.lastCollectionTimestamp
@@ -190,10 +150,10 @@ contract FeeCollectorTest is Test {
             FeeCollector.initialize.selector,
             address(0), // invalid owner
             address(core),
+            address(core),
             0.1e18,
             3600,
-            address(maxbtc),
-            8
+            address(maxbtc)
         );
         vm.expectRevert(FeeCollector.InvalidOwnerAddress.selector);
         new ERC1967Proxy(address(impl), data);
@@ -205,12 +165,27 @@ contract FeeCollectorTest is Test {
             FeeCollector.initialize.selector,
             owner,
             address(0), // invalid core
+            address(core),
             0.1e18,
             3600,
-            address(maxbtc),
-            8
+            address(maxbtc)
         );
         vm.expectRevert(FeeCollector.InvalidCoreContractAddress.selector);
+        new ERC1967Proxy(address(impl), data);
+    }
+
+    function testInitializeRevertsOnZeroErReceiverContract() public {
+        FeeCollector impl = new FeeCollector();
+        bytes memory data = abi.encodeWithSelector(
+            FeeCollector.initialize.selector,
+            owner,
+            address(core),
+            address(0), // invalid exchanage rate receiver
+            0.1e18,
+            3600,
+            address(maxbtc)
+        );
+        vm.expectRevert(FeeCollector.InvalidErReceiverAddress.selector);
         new ERC1967Proxy(address(impl), data);
     }
 
@@ -220,10 +195,10 @@ contract FeeCollectorTest is Test {
             FeeCollector.initialize.selector,
             owner,
             address(core),
+            address(core),
             0.1e18,
             3600,
-            address(0), // invalid token
-            8
+            address(0) // invalid token
         );
         vm.expectRevert(FeeCollector.InvalidFeeTokenAddress.selector);
         new ERC1967Proxy(address(impl), data);
@@ -235,10 +210,10 @@ contract FeeCollectorTest is Test {
             FeeCollector.initialize.selector,
             owner,
             address(core),
+            address(core),
             0, // invalid
             3600,
-            address(maxbtc),
-            8
+            address(maxbtc)
         );
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
         new ERC1967Proxy(address(impl), data);
@@ -250,27 +225,12 @@ contract FeeCollectorTest is Test {
             FeeCollector.initialize.selector,
             owner,
             address(core),
+            address(core),
             ONE, // >= 1.0 invalid
             3600,
-            address(maxbtc),
-            8
+            address(maxbtc)
         );
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
-        new ERC1967Proxy(address(impl), data);
-    }
-
-    function testInitializeRevertsOnTooHighDecimals() public {
-        FeeCollector impl = new FeeCollector();
-        bytes memory data = abi.encodeWithSelector(
-            FeeCollector.initialize.selector,
-            owner,
-            address(core),
-            0.1e18,
-            3600,
-            address(maxbtc),
-            19 // > 18 invalid
-        );
-        vm.expectRevert(FeeCollector.InvalidDecimalConversion.selector);
         new ERC1967Proxy(address(impl), data);
     }
 
@@ -290,7 +250,6 @@ contract FeeCollectorTest is Test {
             "collection period mismatch"
         );
         assertEq(address(cfg.feeToken), address(maxbtc), "fee token mismatch");
-        assertEq(cfg.maxbtcDecimals, 8, "decimals mismatch");
 
         (uint256 coreRate, uint256 coreTs) = core.getLatest();
         assertEq(st.lastExchangeRate, coreRate, "lastExchangeRate mismatch");
@@ -548,30 +507,37 @@ contract FeeCollectorTest is Test {
 
     function testUpdateConfigRevertsOnZeroCoreContract() public {
         vm.expectRevert(FeeCollector.InvalidCoreContractAddress.selector);
-        feeCollector.updateConfig(address(0), 0.2e18, 7200);
+        feeCollector.updateConfig(address(0), address(core), 0.2e18, 7200);
+    }
+
+    function testUpdateConfigRevertsOnZeroErReceiverContract() public {
+        vm.expectRevert(FeeCollector.InvalidErReceiverAddress.selector);
+        feeCollector.updateConfig(address(core), address(0), 0.2e18, 7200);
     }
 
     function testUpdateConfigRevertsOnInvalidFeeReductionZero() public {
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
-        feeCollector.updateConfig(address(core), 0, 7200);
+        feeCollector.updateConfig(address(core), address(core), 0, 7200);
     }
 
     function testUpdateConfigRevertsOnInvalidFeeReductionTooHigh() public {
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
-        feeCollector.updateConfig(address(core), ONE, 7200);
+        feeCollector.updateConfig(address(core), address(core), ONE, 7200);
     }
 
-    function testUpdateConfigChangesConfigAndResetsState() public {
+    function testUpdateConfigChangesConfig() public {
         MockCore newCore = new MockCore();
         newCore.setFeeToken(maxbtc, address(feeCollector));
         newCore.setRate(2e18);
 
-        uint256 beforeTs = feeCollector.getState().lastCollectionTimestamp;
-
-        feeCollector.updateConfig(address(newCore), 0.2e18, 10_000);
+        feeCollector.updateConfig(
+            address(newCore),
+            address(core),
+            0.2e18,
+            10_000
+        );
 
         FeeCollector.Config memory cfg = feeCollector.getConfig();
-        FeeCollector.State memory st = feeCollector.getState();
 
         console2.log("updateConfig():");
         console2.log("new coreContract:", cfg.coreContract);
@@ -582,11 +548,6 @@ contract FeeCollectorTest is Test {
         console2.log(
             "new collectionPeriodSeconds:",
             cfg.collectionPeriodSeconds
-        );
-        console2.log("new lastExchangeRate:", st.lastExchangeRate);
-        console2.log(
-            "new lastCollectionTimestamp:",
-            st.lastCollectionTimestamp
         );
 
         assertEq(
@@ -600,15 +561,6 @@ contract FeeCollectorTest is Test {
             "fee reduction not updated"
         );
         assertEq(cfg.collectionPeriodSeconds, 10_000, "period not updated");
-        assertEq(
-            st.lastExchangeRate,
-            2e18,
-            "state lastExchangeRate should be taken from new core"
-        );
-        assertTrue(
-            st.lastCollectionTimestamp >= beforeTs,
-            "timestamp should be moved forward"
-        );
     }
 
     function testUpdateConfigOnlyOwner() public {
@@ -619,7 +571,7 @@ contract FeeCollectorTest is Test {
                 other
             )
         );
-        feeCollector.updateConfig(address(core), 0.2e18, 7200);
+        feeCollector.updateConfig(address(core), address(core), 0.2e18, 7200);
     }
 
     // --------------------------------------
@@ -633,10 +585,10 @@ contract FeeCollectorTest is Test {
         feeCollector.initialize(
             owner,
             address(core),
+            address(core),
             0.1e18,
             3600,
-            address(maxbtc),
-            8
+            address(maxbtc)
         );
     }
 
@@ -647,10 +599,10 @@ contract FeeCollectorTest is Test {
             FeeCollector.initialize.selector,
             owner,
             address(core),
+            address(core),
             0.1e18,
             3600,
-            address(maxbtc),
-            8
+            address(maxbtc)
         );
 
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), data);
@@ -674,6 +626,7 @@ contract FeeCollectorTest is Test {
         bytes memory data = abi.encodeWithSelector(
             FeeCollector.initialize.selector,
             owner,
+            address(core),
             address(core),
             0.1e18,
             3600,
@@ -716,11 +669,6 @@ contract FeeCollectorTest is Test {
             address(cfgAfter.feeToken),
             address(cfgBefore.feeToken),
             "fee token must be preserved"
-        );
-        assertEq(
-            cfgAfter.maxbtcDecimals,
-            cfgBefore.maxbtcDecimals,
-            "decimals must be preserved"
         );
 
         assertEq(
