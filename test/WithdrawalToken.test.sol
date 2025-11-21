@@ -48,10 +48,35 @@ contract WithdrawalTokenTest is Test {
         vm.prank(core);
         token.mint(user, 1, 100, "");
         assertEq(token.balanceOf(user, 1), 100);
-        // Anyone can burn
+        // Owner can burn their own tokens
         vm.prank(user);
         token.burn(user, 1, 40);
         assertEq(token.balanceOf(user, 1), 60);
+    }
+
+    function testBurnUnauthorizedReverts() public {
+        vm.prank(core);
+        token.mint(user, 1, 10, "");
+        address attacker = address(0x9999);
+        vm.prank(attacker);
+        bytes4 selector = bytes4(
+            keccak256("ERC1155MissingApprovalForAll(address,address)")
+        );
+        vm.expectRevert(abi.encodeWithSelector(selector, attacker, user));
+        token.burn(user, 1, 1);
+    }
+
+    function testBurnByApprovedOperator() public {
+        vm.prank(core);
+        token.mint(user, 1, 50, "");
+        address operator = address(0x9999);
+        // user approves operator
+        vm.prank(user);
+        token.setApprovalForAll(operator, true);
+        // operator burns on behalf of user
+        vm.prank(operator);
+        token.burn(user, 1, 25);
+        assertEq(token.balanceOf(user, 1), 25);
     }
 
     function testUpdateCoreAddressByOwner() public {
