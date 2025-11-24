@@ -105,14 +105,12 @@ contract WaitosaurObserver is
         config.oracle = oracle_;
         config.asset = asset_;
 
-        // Equivalent to Rust: State::Unlocked {}
         WaitosaurObserverState storage state = _state();
-        state.lockedAmount = 0;
-        state.lastLocked = 0;
+        _unlockState(state);
     }
 
     // ---------------------------------------------------------------------
-    // Execution (equivalent to ExecuteMsg)
+    // Execution
     // ---------------------------------------------------------------------
 
     /// @dev Only locker or owner is allowed
@@ -125,8 +123,7 @@ contract WaitosaurObserver is
         if (state.lockedAmount != 0) revert AlreadyLocked();
         if (amount == 0) revert AmountZero();
 
-        state.lockedAmount = amount;
-        state.lastLocked = block.timestamp;
+        _lockState(state, amount, block.timestamp);
 
         emit Locked(amount);
     }
@@ -140,7 +137,6 @@ contract WaitosaurObserver is
         }
         if (state.lockedAmount == 0) revert AlreadyUnlocked();
 
-        // Equivalent to BinanceAumQueryMsg::GetData lookup in Rust version.
         uint256 spotBalance = IAumOracle(config.oracle).getSpotBalance(
             config.asset
         );
@@ -149,8 +145,7 @@ contract WaitosaurObserver is
             revert InsufficientAssetAmount();
         }
 
-        state.lockedAmount = 0;
-        state.lastLocked = 0;
+        _unlockState(state);
 
         emit Unlocked();
     }
@@ -185,7 +180,7 @@ contract WaitosaurObserver is
     }
 
     // ---------------------------------------------------------------------
-    // Queries (equivalent to QueryMsg)
+    // Queries
     // ---------------------------------------------------------------------
 
     function getConfig()
@@ -212,6 +207,20 @@ contract WaitosaurObserver is
 
     function unlocked() external view returns (bool) {
         return _state().lockedAmount == 0;
+    }
+
+    function _lockState(
+        WaitosaurObserverState storage state,
+        uint256 _lockedAmount,
+        uint256 _lastLocked
+    ) private {
+        state.lockedAmount = _lockedAmount;
+        state.lastLocked = _lastLocked;
+    }
+
+    function _unlockState(WaitosaurObserverState storage state) private {
+        state.lockedAmount = 0;
+        state.lastLocked = 0;
     }
 
     // ---------------------------------------------------------------------
