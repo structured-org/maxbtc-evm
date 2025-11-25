@@ -238,13 +238,8 @@ contract WaitosaurObserverTest is Test {
     // -------------------------------------------------------------
 
     function testUpdateConfig() public {
-        address newLocker = address(0x10);
-        address newUnlocker = address(0x11);
         address newOracle = address(0x12);
         string memory newAsset = "ETH";
-
-        vm.prank(owner);
-        observer.updateRoles(newLocker, newUnlocker);
 
         vm.prank(owner);
         observer.updateConfig(newOracle, newAsset);
@@ -252,26 +247,47 @@ contract WaitosaurObserverTest is Test {
         WaitosaurObserverConfig memory cfg = observer.getConfig();
         assertEq(cfg.oracle, newOracle);
         assertEq(cfg.asset, newAsset);
-
-        WaitosaurAccess memory roles = observer.getRoles();
-        assertEq(roles.locker, newLocker);
-        assertEq(roles.unlocker, newUnlocker);
     }
 
     function testPartialUpdateConfigKeepsOld() public {
-        address newLocker = address(0x20);
-
-        vm.prank(owner);
-        observer.updateRoles(newLocker, address(0));
         vm.prank(owner);
         observer.updateConfig(address(0), "");
 
         WaitosaurObserverConfig memory cfg = observer.getConfig();
         assertEq(cfg.oracle, address(oracle));
         assertEq(cfg.asset, asset);
+    }
+
+    // -------------------------------------------------------------
+    // Roles update tests
+    // -------------------------------------------------------------
+
+    function testUpdateRoles() public {
+        address newLocker = address(0xA1EECE);
+        address newUnlocker = address(0xB0B);
+
+        vm.prank(owner);
+        observer.updateRoles(newLocker, newUnlocker);
 
         WaitosaurAccess memory roles = observer.getRoles();
         assertEq(roles.locker, newLocker);
+        assertEq(roles.unlocker, newUnlocker);
+    }
+
+    function testUpdateRolesRevertsNoChange() public {
+        address newLocker = address(0xA1EECE);
+        address newUnlocker = address(0xB0B);
+
+        vm.prank(owner);
+        vm.expectRevert(WaitosaurBase.InvalidUnlockerAddress.selector);
+        observer.updateRoles(newLocker, address(0));
+
+        vm.prank(owner);
+        vm.expectRevert(WaitosaurBase.InvalidLockerAddress.selector);
+        observer.updateRoles(address(0), newUnlocker);
+
+        WaitosaurAccess memory roles = observer.getRoles();
+        assertEq(roles.locker, locker);
         assertEq(roles.unlocker, unlocker);
     }
 

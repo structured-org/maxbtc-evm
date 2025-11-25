@@ -99,9 +99,9 @@ abstract contract WaitosaurBase is
         address newLocker,
         address newUnlocker
     ) public onlyOwner {
-        if (newLocker == address(0) && newUnlocker == address(0)) {
-            revert InvalidLockerAddress();
-        }
+        require(newLocker != address(0), InvalidLockerAddress());
+        require(newUnlocker != address(0), InvalidUnlockerAddress());
+
         _setRoles(newLocker, newUnlocker);
     }
 
