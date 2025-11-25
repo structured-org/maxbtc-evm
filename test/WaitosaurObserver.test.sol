@@ -4,7 +4,8 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import {WaitosaurObserver, WaitosaurObserverConfig, WaitosaurObserverState, IAumOracle} from "../src/WaitosaurObserver.sol";
+import {WaitosaurObserver, WaitosaurObserverConfig, IAumOracle} from "../src/WaitosaurObserver.sol";
+import {WaitosaurBase, WaitosaurState, WaitosaurAccess} from "../src/WaitosaurBase.sol";
 
 /// @notice Simple mock oracle returning a preset balance
 contract MockAumOracle is IAumOracle {
@@ -71,27 +72,29 @@ contract WaitosaurObserverTest is Test {
 
     function testInitialConfigAndState() public view {
         WaitosaurObserverConfig memory cfg = observer.getConfig();
-        assertEq(cfg.locker, locker);
-        assertEq(cfg.unlocker, unlocker);
         assertEq(cfg.oracle, address(oracle));
         assertEq(cfg.asset, asset);
 
-        WaitosaurObserverState memory st = observer.getState();
+        WaitosaurState memory st = observer.getState();
         assertEq(st.lockedAmount, 0);
         assertEq(st.lastLocked, 0);
+
+        WaitosaurAccess memory roles = observer.getRoles();
+        assertEq(roles.locker, locker);
+        assertEq(roles.unlocker, unlocker);
     }
 
     function testInitializeZeroLockerReverts() public {
         WaitosaurObserver fresh = _deployUninitializedProxy();
         vm.prank(owner);
-        vm.expectRevert(WaitosaurObserver.InvalidLockerAddress.selector);
+        vm.expectRevert(WaitosaurBase.InvalidLockerAddress.selector);
         fresh.initialize(owner, address(0), unlocker, address(oracle), asset);
     }
 
     function testInitializeZeroUnlockerReverts() public {
         WaitosaurObserver fresh = _deployUninitializedProxy();
         vm.prank(owner);
-        vm.expectRevert(WaitosaurObserver.InvalidUnlockerAddress.selector);
+        vm.expectRevert(WaitosaurBase.InvalidUnlockerAddress.selector);
         fresh.initialize(owner, locker, address(0), address(oracle), asset);
     }
 
@@ -115,9 +118,7 @@ contract WaitosaurObserverTest is Test {
         fresh.initialize(owner, locker, unlocker, address(oracle), asset);
 
         vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSignature("InvalidInitialization()")
-        );
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
         fresh.initialize(owner, locker, unlocker, address(oracle), asset);
     }
 
@@ -146,7 +147,7 @@ contract WaitosaurObserverTest is Test {
 
     function testLockZeroAmountReverts() public {
         vm.prank(locker);
-        vm.expectRevert(WaitosaurObserver.AmountZero.selector);
+        vm.expectRevert(WaitosaurBase.AmountZero.selector);
         observer.lock(0);
     }
 
@@ -155,14 +156,14 @@ contract WaitosaurObserverTest is Test {
         observer.lock(100);
 
         vm.prank(locker);
-        vm.expectRevert(WaitosaurObserver.AlreadyLocked.selector);
+        vm.expectRevert(WaitosaurBase.AlreadyLocked.selector);
         observer.lock(50);
     }
 
     function testLockUnauthorizedReverts() public {
         address attacker = address(0x99);
         vm.prank(attacker);
-        vm.expectRevert(WaitosaurObserver.Unauthorized.selector);
+        vm.expectRevert(WaitosaurBase.Unauthorized.selector);
         observer.lock(100);
     }
 
@@ -208,13 +209,13 @@ contract WaitosaurObserverTest is Test {
         oracle.setSpotBalance(amount - 1);
 
         vm.prank(unlocker);
-        vm.expectRevert(WaitosaurObserver.InsufficientAssetAmount.selector);
+        vm.expectRevert(WaitosaurBase.InsufficientAssetAmount.selector);
         observer.unlock();
     }
 
     function testUnlockAlreadyUnlockedReverts() public {
         vm.prank(unlocker);
-        vm.expectRevert(WaitosaurObserver.AlreadyUnlocked.selector);
+        vm.expectRevert(WaitosaurBase.AlreadyUnlocked.selector);
         observer.unlock();
     }
 
@@ -228,7 +229,7 @@ contract WaitosaurObserverTest is Test {
 
         address attacker = address(0x99);
         vm.prank(attacker);
-        vm.expectRevert(WaitosaurObserver.Unauthorized.selector);
+        vm.expectRevert(WaitosaurBase.Unauthorized.selector);
         observer.unlock();
     }
 
@@ -243,26 +244,35 @@ contract WaitosaurObserverTest is Test {
         string memory newAsset = "ETH";
 
         vm.prank(owner);
-        observer.updateConfig(newLocker, newUnlocker, newOracle, newAsset);
+        observer.updateRoles(newLocker, newUnlocker);
+
+        vm.prank(owner);
+        observer.updateConfig(newOracle, newAsset);
 
         WaitosaurObserverConfig memory cfg = observer.getConfig();
-        assertEq(cfg.locker, newLocker);
-        assertEq(cfg.unlocker, newUnlocker);
         assertEq(cfg.oracle, newOracle);
         assertEq(cfg.asset, newAsset);
+
+        WaitosaurAccess memory roles = observer.getRoles();
+        assertEq(roles.locker, newLocker);
+        assertEq(roles.unlocker, newUnlocker);
     }
 
     function testPartialUpdateConfigKeepsOld() public {
         address newLocker = address(0x20);
 
         vm.prank(owner);
-        observer.updateConfig(newLocker, address(0), address(0), "");
+        observer.updateRoles(newLocker, address(0));
+        vm.prank(owner);
+        observer.updateConfig(address(0), "");
 
         WaitosaurObserverConfig memory cfg = observer.getConfig();
-        assertEq(cfg.locker, newLocker);
-        assertEq(cfg.unlocker, unlocker);
         assertEq(cfg.oracle, address(oracle));
         assertEq(cfg.asset, asset);
+
+        WaitosaurAccess memory roles = observer.getRoles();
+        assertEq(roles.locker, newLocker);
+        assertEq(roles.unlocker, unlocker);
     }
 
     // -------------------------------------------------------------
@@ -285,12 +295,14 @@ contract WaitosaurObserverTest is Test {
 
         // Storage preserved
         WaitosaurObserverConfig memory cfg = observer.getConfig();
-        assertEq(cfg.locker, locker);
-        assertEq(cfg.unlocker, unlocker);
         assertEq(cfg.oracle, address(oracle));
         assertEq(cfg.asset, asset);
 
-        WaitosaurObserverState memory st = observer.getState();
+        WaitosaurAccess memory roles = observer.getRoles();
+        assertEq(roles.locker, locker);
+        assertEq(roles.unlocker, unlocker);
+
+        WaitosaurState memory st = observer.getState();
         assertEq(st.lockedAmount, 111);
         assertGt(st.lastLocked, 0);
     }
