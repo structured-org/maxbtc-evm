@@ -67,9 +67,8 @@ abstract contract WaitosaurBase is
     }
 
     function _getRoles() internal pure returns (WaitosaurAccess storage r) {
-        bytes32 slot = ROLES_STORAGE_SLOT;
         assembly {
-            r.slot := slot
+            r.slot := ROLES_STORAGE_SLOT
         }
     }
 
