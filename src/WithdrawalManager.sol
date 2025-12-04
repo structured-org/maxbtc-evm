@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {ERC1155HolderUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
 import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -20,7 +20,7 @@ contract WithdrawalManager is
     Initializable,
     UUPSUpgradeable,
     ERC1155HolderUpgradeable,
-    OwnableUpgradeable
+    Ownable2StepUpgradeable
 {
     struct WithdrawalManagerConfig {
         address coreContract;
@@ -36,7 +36,6 @@ contract WithdrawalManager is
     error InvalidCoreContractAddress();
     error InvalidwBTCContractAddress();
     error InvalidWithdrawalTokenContractAddress();
-    error InvalidOwnerAddress();
     error BatchSupportNotEnabled();
     error InvalidWithdrawalToken();
     error ContractPaused();
@@ -72,8 +71,8 @@ contract WithdrawalManager is
         if (_wbtcContract == address(0)) revert InvalidwBTCContractAddress();
         if (_withdrawalTokenContract == address(0))
             revert InvalidWithdrawalTokenContractAddress();
-        if (owner_ == address(0)) revert InvalidOwnerAddress();
         __Ownable_init(owner_);
+        __Ownable2Step_init();
         __UUPSUpgradeable_init();
         WithdrawalManagerConfig storage config = _getWithdrawalManagerConfig();
         config.coreContract = _coreContract;
