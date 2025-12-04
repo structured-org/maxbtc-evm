@@ -87,14 +87,14 @@ contract WaitosaurObserverTest is Test {
     function testInitializeZeroLockerReverts() public {
         WaitosaurObserver fresh = _deployUninitializedProxy();
         vm.prank(owner);
-        vm.expectRevert(WaitosaurBase.InvalidLockerAddress.selector);
+        vm.expectRevert(WaitosaurBase.InvalidRolesAddresses.selector);
         fresh.initialize(owner, address(0), unlocker, address(oracle), asset);
     }
 
     function testInitializeZeroUnlockerReverts() public {
         WaitosaurObserver fresh = _deployUninitializedProxy();
         vm.prank(owner);
-        vm.expectRevert(WaitosaurBase.InvalidUnlockerAddress.selector);
+        vm.expectRevert(WaitosaurBase.InvalidRolesAddresses.selector);
         fresh.initialize(owner, locker, address(0), address(oracle), asset);
     }
 
@@ -263,7 +263,7 @@ contract WaitosaurObserverTest is Test {
     // -------------------------------------------------------------
 
     function testUpdateRoles() public {
-        address newLocker = address(0xA1EECE);
+        address newLocker = address(0xA11CE);
         address newUnlocker = address(0xB0B);
 
         vm.prank(owner);
@@ -275,15 +275,15 @@ contract WaitosaurObserverTest is Test {
     }
 
     function testUpdateRolesRevertsNoChange() public {
-        address newLocker = address(0xA1EECE);
+        address newLocker = address(0xA11CE);
         address newUnlocker = address(0xB0B);
 
         vm.prank(owner);
-        vm.expectRevert(WaitosaurBase.InvalidUnlockerAddress.selector);
+        vm.expectRevert(WaitosaurBase.InvalidRolesAddresses.selector);
         observer.updateRoles(newLocker, address(0));
 
         vm.prank(owner);
-        vm.expectRevert(WaitosaurBase.InvalidLockerAddress.selector);
+        vm.expectRevert(WaitosaurBase.InvalidRolesAddresses.selector);
         observer.updateRoles(address(0), newUnlocker);
 
         WaitosaurAccess memory roles = observer.getRoles();

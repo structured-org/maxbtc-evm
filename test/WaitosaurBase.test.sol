@@ -4,37 +4,36 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {WaitosaurBase, WaitosaurState, WaitosaurAccess} from "../src/WaitosaurBase.sol";
 
-contract MockWaitosaur is WaitosaurBase {
-    event UnlockedCalled(uint256 amount);
+contract Waitosaur is WaitosaurBase {
+    event UnlockCalled(uint256 amount);
 
     function initialize(
         address owner_,
         address locker_,
         address unlocker_
     ) external initializer {
-        if (owner_ == address(0)) revert InvalidUnlockerAddress();
         __Ownable_init(owner_);
         __UUPSUpgradeable_init();
-        _initializeRoles(locker_, unlocker_);
+        _setRoles(locker_, unlocker_);
         _clearLock(_getState());
     }
 
     function _unlock(WaitosaurState storage state) internal override {
-        emit UnlockedCalled(state.lockedAmount);
+        emit UnlockCalled(state.lockedAmount);
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
 }
 
 contract WaitosaurBaseTest is Test {
-    MockWaitosaur internal waitosaur;
+    Waitosaur internal waitosaur;
     address internal owner = address(0x1);
     address internal locker = address(0x2);
     address internal unlocker = address(0x3);
     address internal other = address(0x4);
 
     function setUp() public {
-        waitosaur = new MockWaitosaur();
+        waitosaur = new Waitosaur();
         waitosaur.initialize(owner, locker, unlocker);
     }
 
@@ -77,7 +76,7 @@ contract WaitosaurBaseTest is Test {
 
         vm.prank(unlocker);
         vm.expectEmit(true, true, true, true, address(waitosaur));
-        emit MockWaitosaur.UnlockedCalled(5);
+        emit Waitosaur.UnlockCalled(5);
         waitosaur.unlock();
 
         assertEq(waitosaur.lockedAmount(), 0);
@@ -127,7 +126,7 @@ contract WaitosaurBaseTest is Test {
 
     function testUpdateRolesRevertsWhenNoChange() public {
         vm.prank(owner);
-        vm.expectRevert(WaitosaurBase.InvalidLockerAddress.selector);
+        vm.expectRevert(WaitosaurBase.InvalidRolesAddresses.selector);
         waitosaur.updateRoles(address(0), address(0));
     }
 

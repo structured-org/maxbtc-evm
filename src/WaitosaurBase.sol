@@ -27,8 +27,7 @@ abstract contract WaitosaurBase is
     error AlreadyLocked();
     error AlreadyUnlocked();
     error AmountZero();
-    error InvalidLockerAddress();
-    error InvalidUnlockerAddress();
+    error InvalidRolesAddresses();
     error InsufficientAssetAmount();
     error Unauthorized();
 
@@ -44,26 +43,22 @@ abstract contract WaitosaurBase is
     // Slots
     // ---------------------------------------------------------------------
 
-    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.state")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 internal constant STATE_STORAGE_SLOT_HOLDER =
-        0xcb11509986cbc674883f88160c41f636c73566a871549bf8441ad8bc0e648300;
-    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.roles")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.base.state")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 internal constant STATE_STORAGE_SLOT =
+        0x3558e4a352cfd953dc9839fb713b54b0ad22b91e762cb85051783d80d3379c00;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.base.roles")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 internal constant ROLES_STORAGE_SLOT =
-        0x8dd083a75f3aab575c55c6c418ff7b8be832ed2ed0de8227f52af67507e54500;
+        0xf8491acbe0d7b7ea9ed2881253b95cb844f2ef763d00e27dc8068974c606e200;
 
     function _getState() internal pure returns (WaitosaurState storage s) {
         assembly {
-            s.slot := STATE_STORAGE_SLOT_HOLDER
+            s.slot := STATE_STORAGE_SLOT
         }
     }
 
-    function getState() external view returns (WaitosaurState memory) {
+    function getState() external pure returns (WaitosaurState memory) {
         WaitosaurState storage state = _getState();
-        return
-            WaitosaurState({
-                lockedAmount: state.lockedAmount,
-                lastLocked: state.lastLocked
-            });
+        return state;
     }
 
     function _getRoles() internal pure returns (WaitosaurAccess storage r) {
@@ -72,36 +67,40 @@ abstract contract WaitosaurBase is
         }
     }
 
-    function _initializeRoles(address locker, address unlocker) internal {
+    function getRoles() public pure returns (WaitosaurAccess memory) {
         WaitosaurAccess storage r = _getRoles();
-        r.locker = locker;
-        r.unlocker = unlocker;
-        emit RolesUpdated(r);
+        return r;
+    }
+
+    function __WaitosaurBase_init(
+        address owner_,
+        address locker_,
+        address unlocker_
+    ) internal onlyInitializing {
+        __Ownable_init(owner_);
+        __UUPSUpgradeable_init();
+
+        _setRoles(locker_, unlocker_);
+        _clearLock(_getState());
     }
 
     function _setRoles(address locker, address unlocker) internal {
         WaitosaurAccess storage r = _getRoles();
-        if (locker != address(0)) {
-            r.locker = locker;
-        }
-        if (unlocker != address(0)) {
-            r.unlocker = unlocker;
-        }
-        emit RolesUpdated(r);
-    }
+        require(
+            locker != address(0) && unlocker != address(0),
+            InvalidRolesAddresses()
+        );
 
-    function getRoles() public pure returns (WaitosaurAccess memory) {
-        WaitosaurAccess storage r = _getRoles();
-        return r;
+        r.locker = locker;
+        r.unlocker = unlocker;
+
+        emit RolesUpdated(r);
     }
 
     function updateRoles(
         address newLocker,
         address newUnlocker
     ) public onlyOwner {
-        require(newLocker != address(0), InvalidLockerAddress());
-        require(newUnlocker != address(0), InvalidUnlockerAddress());
-
         _setRoles(newLocker, newUnlocker);
     }
 
@@ -113,6 +112,8 @@ abstract contract WaitosaurBase is
         if (state.lockedAmount != 0) revert AlreadyLocked();
         state.lockedAmount = amount;
         state.lastLocked = block.timestamp;
+
+        emit Locked(amount);
     }
 
     function lock(uint256 amount) public {
@@ -121,7 +122,6 @@ abstract contract WaitosaurBase is
             revert Unauthorized();
         }
         _lockBase(amount);
-        emit Locked(amount);
     }
 
     /// @dev Only unlocker or owner is allowed.

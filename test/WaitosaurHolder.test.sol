@@ -162,7 +162,7 @@ contract WaitosaurHolderTest is Test {
         waitosaur.updateConfig(address(0));
 
         vm.prank(owner);
-        vm.expectRevert(WaitosaurBase.InvalidLockerAddress.selector);
+        vm.expectRevert(WaitosaurBase.InvalidRolesAddresses.selector);
         waitosaur.updateRoles(address(0), address(0));
     }
 

@@ -59,27 +59,21 @@ contract WaitosaurObserver is WaitosaurBase {
         address oracle_,
         string calldata asset_
     ) public initializer {
-        if (locker_ == address(0)) revert InvalidLockerAddress();
-        if (unlocker_ == address(0)) revert InvalidUnlockerAddress();
         if (oracle_ == address(0)) revert InvalidOracleAddress();
         if (bytes(asset_).length == 0) revert InvalidAsset();
 
-        __Ownable_init(owner_);
-        __UUPSUpgradeable_init();
+        __WaitosaurBase_init(owner_, locker_, unlocker_);
 
         WaitosaurObserverConfig storage config = _config();
         config.oracle = oracle_;
         config.asset = asset_;
-
-        _initializeRoles(locker_, unlocker_);
-        _clearLock(_getState());
     }
 
     // ---------------------------------------------------------------------
     // Execution
     // ---------------------------------------------------------------------
 
-    /// @dev Zero address or empty string means "do not change"
+    /// @notice Zero address or empty string means "do not change"
     function updateConfig(
         address newOracle,
         string calldata newAsset
@@ -112,7 +106,9 @@ contract WaitosaurObserver is WaitosaurBase {
     // Overrides
     // ---------------------------------------------------------------------
 
-    function _unlock(WaitosaurState storage state) internal view override {
+    function _unlock(
+        WaitosaurState storage state
+    ) internal view override(WaitosaurBase) {
         WaitosaurObserverConfig storage config = _config();
         uint256 spotBalance = IAumOracle(config.oracle).getSpotBalance(
             config.asset

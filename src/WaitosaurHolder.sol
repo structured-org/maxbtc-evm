@@ -17,8 +17,6 @@ contract WaitosaurHolder is WaitosaurBase {
 
     error InvalidTokenAddress();
     error InvalidReceiverAddress();
-    error NotLocker();
-    error NotUnLocker();
 
     // ---------------------------------------------------------------------
     // Events
@@ -51,22 +49,19 @@ contract WaitosaurHolder is WaitosaurBase {
 
     function initialize(
         address owner_,
-        address _token,
-        address _locker,
-        address _unlocker,
-        address _receiver
+        address token_,
+        address locker_,
+        address unlocker_,
+        address receiver_
     ) public initializer {
-        if (_token == address(0)) revert InvalidTokenAddress();
-        if (_receiver == address(0)) revert InvalidReceiverAddress();
-        if (_locker == address(0)) revert InvalidLockerAddress();
-        if (_unlocker == address(0)) revert InvalidUnlockerAddress();
-        if (owner_ == address(0)) revert InvalidUnlockerAddress();
-        __Ownable_init(owner_);
-        __UUPSUpgradeable_init();
+        if (token_ == address(0)) revert InvalidTokenAddress();
+        if (receiver_ == address(0)) revert InvalidReceiverAddress();
+
+        __WaitosaurBase_init(owner_, locker_, unlocker_);
+
         WaitosaurHolderConfig storage config = _getWaitosaurConfig();
-        config.receiver = _receiver;
-        config.token = _token;
-        _initializeRoles(_locker, _unlocker);
+        config.receiver = receiver_;
+        config.token = token_;
     }
 
     // ---------------------------------------------------------------------
@@ -93,7 +88,9 @@ contract WaitosaurHolder is WaitosaurBase {
     // Overrides
     // ---------------------------------------------------------------------
 
-    function _unlock(WaitosaurState storage state) internal override {
+    function _unlock(
+        WaitosaurState storage state
+    ) internal override(WaitosaurBase) {
         WaitosaurHolderConfig storage config = _getWaitosaurConfig();
         IERC20 tokenERC20 = IERC20(config.token);
 
