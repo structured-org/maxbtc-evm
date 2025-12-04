@@ -7,14 +7,22 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract MockZkMe is IZkMe {
-    bool public approved;
+    mapping(address => bool) public approved;
+    address public cooperator;
 
-    function setApproved(bool newVal) external {
-        approved = newVal;
+    function setCooperator(address _cooperator) external {
+        cooperator = _cooperator;
     }
 
-    function hasApproved(address, address) external view returns (bool) {
-        return approved;
+    function setApproved(address _approved) external {
+        approved[_approved] = true;
+    }
+
+    function hasApproved(
+        address _cooperator,
+        address user
+    ) external view returns (bool) {
+        return _cooperator == cooperator && approved[user];
     }
 }
 
@@ -33,6 +41,7 @@ contract AllowlistTest is Test {
         );
         allowlist = Allowlist(address(proxy));
         zkme = new MockZkMe();
+        zkme.setCooperator(OTHER);
     }
 
     function testAllowAndDeny() external {
@@ -54,12 +63,12 @@ contract AllowlistTest is Test {
         vm.prank(OWNER);
         allowlist.setZkMeSettings(address(zkme), OTHER);
         assertFalse(Allowlist(address(allowlist)).isAddressAllowed(USER));
-        zkme.setApproved(true);
+        zkme.setApproved(USER);
         assertTrue(Allowlist(address(allowlist)).isAddressAllowed(USER));
 
         vm.prank(OWNER);
+        // Remove zkMe settings from allowlist
         allowlist.setZkMeSettings(address(0), address(0));
-        zkme.setApproved(false);
         assertFalse(Allowlist(address(allowlist)).isAddressAllowed(USER));
     }
 
