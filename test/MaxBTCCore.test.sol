@@ -154,11 +154,8 @@ contract MaxBTCCoreTest is Test {
             "Redemption",
             "rMAX-"
         );
-        waitosaurHolder.updateConfig(
-            OPERATOR,
-            address(core),
-            WITHDRAWAL_MANAGER
-        );
+        waitosaurHolder.updateRoles(OPERATOR, address(core));
+        waitosaurHolder.updateConfig(WITHDRAWAL_MANAGER);
 
         allowlist.allow(_arr(USER));
     }

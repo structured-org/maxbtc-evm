@@ -10,6 +10,7 @@ import {MaxBTCCore} from "../src/MaxBTCCore.sol";
 import {MaxBTCERC20} from "../src/MaxBTCERC20.sol";
 import {WithdrawalToken} from "../src/WithdrawalToken.sol";
 import {WithdrawalManager} from "../src/WithdrawalManager.sol";
+import {WaitosaurBase} from "../src/WaitosaurBase.sol";
 import {WaitosaurHolder} from "../src/WaitosaurHolder.sol";
 import {WaitosaurObserver, IAumOracle} from "../src/WaitosaurObserver.sol";
 import {Allowlist} from "../src/Allowlist.sol";
