@@ -12,10 +12,7 @@ contract Waitosaur is WaitosaurBase {
         address locker_,
         address unlocker_
     ) external initializer {
-        __Ownable_init(owner_);
-        __UUPSUpgradeable_init();
-        _setRoles(locker_, unlocker_);
-        _clearLock(_getState());
+        __WaitosaurBase_init(owner_, locker_, unlocker_);
     }
 
     function _unlock(WaitosaurState storage state) internal override {
@@ -139,5 +136,17 @@ contract WaitosaurBaseTest is Test {
             )
         );
         waitosaur.updateRoles(address(0xAA), address(0xBB));
+    }
+
+    function testTwoStepOwnershipTransfer() public {
+        address newOwner = address(0xABC);
+        vm.prank(owner);
+        waitosaur.transferOwnership(newOwner);
+        assertEq(waitosaur.pendingOwner(), newOwner, "pending owner set");
+
+        vm.prank(newOwner);
+        waitosaur.acceptOwnership();
+        assertEq(waitosaur.owner(), newOwner, "ownership transferred");
+        assertEq(waitosaur.pendingOwner(), address(0), "pending cleared");
     }
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
 struct WaitosaurState {
     uint256 lockedAmount;
@@ -18,7 +18,7 @@ struct WaitosaurAccess {
 abstract contract WaitosaurBase is
     Initializable,
     UUPSUpgradeable,
-    OwnableUpgradeable
+    Ownable2StepUpgradeable
 {
     // ---------------------------------------------------------------------
     // Errors
@@ -78,6 +78,7 @@ abstract contract WaitosaurBase is
         address unlocker_
     ) internal onlyInitializing {
         __Ownable_init(owner_);
+        __Ownable2Step_init();
         __UUPSUpgradeable_init();
 
         _setRoles(locker_, unlocker_);
