@@ -4,11 +4,14 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MaxBTCCore} from "../src/MaxBTCCore.sol";
 import {MaxBTCERC20} from "../src/MaxBTCERC20.sol";
 import {WithdrawalToken} from "../src/WithdrawalToken.sol";
 import {WithdrawalManager} from "../src/WithdrawalManager.sol";
 import {WaitosaurHolder} from "../src/WaitosaurHolder.sol";
+import {WaitosaurBase} from "../src/WaitosaurBase.sol";
 import {WaitosaurObserver, IAumOracle} from "../src/WaitosaurObserver.sol";
 import {FeeCollector} from "../src/FeeCollector.sol";
 import {Receiver} from "../src/Receiver.sol";
@@ -176,13 +179,10 @@ contract MaxBTCCoreIntegrationTest is Test {
         maxbtc = MaxBTCERC20(address(maxbtcProxy));
         withdrawalToken = WithdrawalToken(address(withdrawalProxy));
         manager = WithdrawalManager(address(managerProxy));
-        waitosaurObserver.updateConfig(
-            address(core),
-            OPERATOR,
-            address(oracle),
-            ""
-        );
-        waitosaurHolder.updateConfig(OPERATOR, address(core), address(manager));
+        waitosaurObserver.updateRoles(address(core), OPERATOR);
+        waitosaurObserver.updateConfig(address(oracle), "");
+        waitosaurHolder.updateRoles(OPERATOR, address(core));
+        waitosaurHolder.updateConfig(address(manager));
 
         // Now initialize dependent contracts with the finalized core address.
         maxbtc.initialize(
@@ -748,12 +748,24 @@ contract MaxBTCCoreIntegrationTest is Test {
 
     function testWaitosaurHolderUnlockFailures() external {
         _moveToWithdrawPendingWithLock(5e7);
+        // Ensure roles set correctly for unlocker
+        waitosaurHolder.updateRoles(OPERATOR, address(core));
+        // Drain holder balance to force insufficient balance on unlock
+        vm.startPrank(address(waitosaurHolder));
+        SafeERC20.safeTransfer(
+            IERC20(address(wbtc)),
+            address(0xdead),
+            wbtc.balanceOf(address(waitosaurHolder))
+        );
+        vm.stopPrank();
         vm.prank(OPERATOR);
-        vm.expectRevert(WaitosaurHolder.InsufficientBalance.selector);
+        vm.expectRevert(WaitosaurBase.InsufficientAssetAmount.selector);
         core.tick(); // WithdrawPending -> should fail unlock
 
         // Unauthorized unlock attempt
-        vm.expectRevert(WaitosaurHolder.NotUnLocker.selector);
+        address random = address(0xBADC0DE);
+        vm.prank(random);
+        vm.expectRevert(WaitosaurBase.Unauthorized.selector);
         waitosaurHolder.unlock();
     }
 
@@ -789,6 +801,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         core.tick(); // Idle -> WithdrawJlp
         vm.prank(OPERATOR);
         core.tick(); // WithdrawJlp -> WithdrawPending
+        wbtc.mint(address(waitosaurHolder), lockAmount);
         vm.prank(OPERATOR);
         waitosaurHolder.lock(lockAmount);
     }
