@@ -30,7 +30,7 @@ contract WaitosaurHolder is WaitosaurBase {
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.holder.config")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant CONFIG_STORAGE_SLOT =
-        0xd788cf889637414408102ead9bb45ec368e1e6e80911edf1852af5b5d59ad900;
+        0x47c6d7e4919fbb673f9a86f2f237d78da7840dcd981fb6622bf1c417e3fed700;
 
     function _getWaitosaurConfig()
         private
@@ -88,10 +88,9 @@ contract WaitosaurHolder is WaitosaurBase {
     // Overrides
     // ---------------------------------------------------------------------
 
-    function _unlock(
-        WaitosaurState storage state
-    ) internal override(WaitosaurBase) {
+    function _unlock() internal override(WaitosaurBase) {
         WaitosaurHolderConfig storage config = _getWaitosaurConfig();
+        WaitosaurState storage state = _getState();
         IERC20 tokenERC20 = IERC20(config.token);
 
         uint256 balance = tokenERC20.balanceOf(address(this));

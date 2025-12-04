@@ -45,10 +45,10 @@ abstract contract WaitosaurBase is
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.base.state")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 internal constant STATE_STORAGE_SLOT =
-        0x3558e4a352cfd953dc9839fb713b54b0ad22b91e762cb85051783d80d3379c00;
+        0xb625a17d914f4b51b828255a041dd3685dd0ee72e56b573af3d2e7026d744a00;
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.base.roles")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 internal constant ROLES_STORAGE_SLOT =
-        0xf8491acbe0d7b7ea9ed2881253b95cb844f2ef763d00e27dc8068974c606e200;
+        0x0a2710fa198f5ddf1285643038b49c62a676636b17744ae31f3856897d341700;
 
     function _getState() internal pure returns (WaitosaurState storage s) {
         assembly {
@@ -132,12 +132,12 @@ abstract contract WaitosaurBase is
             revert Unauthorized();
         WaitosaurState storage state = _getState();
         _ensureLocked(state);
-        _unlock(state);
+        _unlock();
         _clearLock(state);
         emit Unlocked();
     }
 
-    function _unlock(WaitosaurState storage state) internal virtual {}
+    function _unlock() internal virtual {}
 
     function lastLocked() public view returns (uint256) {
         return _getState().lastLocked;

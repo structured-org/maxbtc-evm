@@ -36,7 +36,7 @@ contract WaitosaurObserver is WaitosaurBase {
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.observer.config")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant CONFIG_STORAGE_SLOT =
-        0x54b7bbce5d6b2ddbcd1f5766867ee5cd3a7cfecc2ec43a3cd750b88545115b00;
+        0xa3610185eb222d8e74f6618d40b7c4662aee6c24d7161ae6a36cd8ec3a4c7500;
 
     constructor() {
         _disableInitializers();
@@ -106,10 +106,9 @@ contract WaitosaurObserver is WaitosaurBase {
     // Overrides
     // ---------------------------------------------------------------------
 
-    function _unlock(
-        WaitosaurState storage state
-    ) internal view override(WaitosaurBase) {
+    function _unlock() internal view override(WaitosaurBase) {
         WaitosaurObserverConfig storage config = _config();
+        WaitosaurState storage state = _getState();
         uint256 spotBalance = IAumOracle(config.oracle).getSpotBalance(
             config.asset
         );

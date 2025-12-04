@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {WaitosaurBase, WaitosaurState, WaitosaurAccess} from "../src/WaitosaurBase.sol";
 
 contract Waitosaur is WaitosaurBase {
@@ -15,7 +15,8 @@ contract Waitosaur is WaitosaurBase {
         __WaitosaurBase_init(owner_, locker_, unlocker_);
     }
 
-    function _unlock(WaitosaurState storage state) internal override {
+    function _unlock() internal override {
+        WaitosaurState storage state = _getState();
         emit UnlockCalled(state.lockedAmount);
     }
 
