@@ -144,21 +144,6 @@ contract FeeCollectorTest is Test {
     // Initialization edge cases (via proxy)
     // --------------------------------------
 
-    function testInitializeRevertsOnZeroOwner() public {
-        FeeCollector impl = new FeeCollector();
-        bytes memory data = abi.encodeWithSelector(
-            FeeCollector.initialize.selector,
-            address(0), // invalid owner
-            address(core),
-            address(core),
-            0.1e18,
-            3600,
-            address(maxbtc)
-        );
-        vm.expectRevert(FeeCollector.InvalidOwnerAddress.selector);
-        new ERC1967Proxy(address(impl), data);
-    }
-
     function testInitializeRevertsOnZeroCoreContract() public {
         FeeCollector impl = new FeeCollector();
         bytes memory data = abi.encodeWithSelector(

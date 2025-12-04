@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {ERC1155HolderUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
 import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -20,7 +20,7 @@ contract WithdrawalManager is
     Initializable,
     UUPSUpgradeable,
     ERC1155HolderUpgradeable,
-    OwnableUpgradeable
+    Ownable2StepUpgradeable
 {
     struct WithdrawalManagerConfig {
         address coreContract;
@@ -36,7 +36,6 @@ contract WithdrawalManager is
     error InvalidCoreContractAddress();
     error InvalidwBTCContractAddress();
     error InvalidWithdrawalTokenContractAddress();
-    error InvalidOwnerAddress();
     error BatchSupportNotEnabled();
     error InvalidWithdrawalToken();
     error ContractPaused();
@@ -44,13 +43,13 @@ contract WithdrawalManager is
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.config")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant CONFIG_STORAGE_SLOT =
-        0xc05eddcf30f5799a924a2d0209ce01a3354e003661d757c914fb7f66af6dbe00;
+        0x586b8ebd4b221736eefae7cfa16e8ed3b4ce4c3890765b521ad826b0ffedfd00;
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.paid_amount")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant PAID_AMOUNT_STORAGE_SLOT =
         0x8ee28e9cbcd498a9bd31513552accc39c2806ab50852fb31c37d622919337900;
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.pause")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant PAUSE_STORAGE_SLOT =
-        0x762c2360e8546addf1e0baa2598999383b46e0d7684a31969b2f8c1512771900;
+        0x67e38bbcda9028a2e19a608178c5c2c77532c8eeaf31e6b94ce02f730b76ac00;
 
     event Claimed(uint256 amount);
     event Paused();
@@ -72,8 +71,8 @@ contract WithdrawalManager is
         if (_wbtcContract == address(0)) revert InvalidwBTCContractAddress();
         if (_withdrawalTokenContract == address(0))
             revert InvalidWithdrawalTokenContractAddress();
-        if (owner_ == address(0)) revert InvalidOwnerAddress();
         __Ownable_init(owner_);
+        __Ownable2Step_init();
         __UUPSUpgradeable_init();
         WithdrawalManagerConfig storage config = _getWithdrawalManagerConfig();
         config.coreContract = _coreContract;

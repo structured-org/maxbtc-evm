@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -17,7 +17,11 @@ interface ICoreContract {
     function mintFee(uint256 amount) external;
 }
 
-contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract FeeCollector is
+    Initializable,
+    UUPSUpgradeable,
+    Ownable2StepUpgradeable
+{
     using SafeERC20 for IERC20;
 
     uint256 private constant ONE = 1e18;
@@ -42,7 +46,6 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     // Errors
-    error InvalidOwnerAddress();
     error InvalidRecipientAddress();
     error InvalidCoreContractAddress();
     error InvalidFeeTokenAddress();
@@ -92,7 +95,6 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint64 collectionPeriodSeconds_,
         address feeToken_
     ) external initializer {
-        if (owner_ == address(0)) revert InvalidOwnerAddress();
         if (coreContract_ == address(0)) revert InvalidCoreContractAddress();
         if (erReceiver_ == address(0)) revert InvalidErReceiverAddress();
         if (feeToken_ == address(0)) revert InvalidFeeTokenAddress();
@@ -103,6 +105,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         __Ownable_init(owner_);
+        __Ownable2Step_init();
         __UUPSUpgradeable_init();
 
         Config storage config = _getConfig();
@@ -155,12 +158,7 @@ contract FeeCollector is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         st.lastExchangeRate = currentRate;
         st.lastCollectionTimestamp = uint64(block.timestamp);
 
-        emit FeeCollected(
-            toMint,
-            currentRate,
-            previousRate,
-            totalSupply
-        );
+        emit FeeCollected(toMint, currentRate, previousRate, totalSupply);
     }
 
     function claim(uint256 amount, address recipient) external onlyOwner {

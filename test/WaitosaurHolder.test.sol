@@ -2,12 +2,10 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {console} from "forge-std/console.sol";
 
 import "../src/WaitosaurHolder.sol" as waitosaurSrc;
-import {
-    ERC1967Proxy
-} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {WaitosaurBase, WaitosaurAccess} from "../src/WaitosaurBase.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MockERC20 {
     string public name = "MockToken";
@@ -32,12 +30,14 @@ contract MockERC20 {
         _balanceOf[from] -= amount;
         totalSupply -= amount;
     }
+
     function transfer(address to, uint256 amount) external returns (bool) {
         if (_balanceOf[msg.sender] < amount) revert InsufficientBalance();
         _balanceOf[msg.sender] -= amount;
         _balanceOf[to] += amount;
         return true;
     }
+
     function transferFrom(
         address from,
         address to,
@@ -51,6 +51,7 @@ contract MockERC20 {
         allowance[from][msg.sender] -= amount;
         return true;
     }
+
     function mint(address to, uint256 amount) external {
         _balanceOf[to] += amount;
         totalSupply += amount;
@@ -116,7 +117,7 @@ contract WaitosaurHolderTest is Test {
         vm.prank(unLocker);
         vm.expectRevert(
             abi.encodeWithSelector(
-                waitosaurSrc.WaitosaurHolder.InsufficientBalance.selector
+                WaitosaurBase.InsufficientAssetAmount.selector
             )
         );
         waitosaur.unlock();
@@ -127,27 +128,21 @@ contract WaitosaurHolderTest is Test {
         address newUnLocker = address(0x11);
         address newReceiver = address(0x12);
         vm.prank(owner);
-        waitosaur.updateConfig(newLocker, newUnLocker, newReceiver);
-        (
-            address tokenAddr,
-            address lockerAddr,
-            address unLockerAddr,
-            address receiverAddr
-        ) = (
-                waitosaur.getConfig().token,
-                waitosaur.getConfig().locker,
-                waitosaur.getConfig().unLocker,
-                waitosaur.getConfig().receiver
-            );
-        assertEq(lockerAddr, newLocker);
-        assertEq(unLockerAddr, newUnLocker);
+        waitosaur.updateRoles(newLocker, newUnLocker);
+        vm.prank(owner);
+        waitosaur.updateConfig(newReceiver);
+        (address tokenAddr, address receiverAddr) = (
+            waitosaur.getConfig().token,
+            waitosaur.getConfig().receiver
+        );
+        WaitosaurAccess memory roles = waitosaur.getRoles();
+        assertEq(roles.locker, newLocker);
+        assertEq(roles.unlocker, newUnLocker);
         assertEq(receiverAddr, newReceiver);
         assertEq(tokenAddr, address(token));
     }
 
     function testNonOwnerCannotUpdateConfig() public {
-        address newLocker = address(0x10);
-        address newUnLocker = address(0x11);
         address newReceiver = address(0x12);
         vm.prank(locker);
         vm.expectRevert(
@@ -156,27 +151,19 @@ contract WaitosaurHolderTest is Test {
                 locker
             )
         );
-        waitosaur.updateConfig(newLocker, newUnLocker, newReceiver);
+        waitosaur.updateConfig(newReceiver);
     }
 
     function testUpdateConfigZeroAddressesRevert() public {
         vm.prank(owner);
         vm.expectRevert(
-            waitosaurSrc.WaitosaurHolder.InvalidLockerAddress.selector
-        );
-        waitosaur.updateConfig(address(0), unLocker, receiver);
-
-        vm.prank(owner);
-        vm.expectRevert(
-            waitosaurSrc.WaitosaurHolder.InvalidUnlockerAddress.selector
-        );
-        waitosaur.updateConfig(locker, address(0), receiver);
-
-        vm.prank(owner);
-        vm.expectRevert(
             waitosaurSrc.WaitosaurHolder.InvalidReceiverAddress.selector
         );
-        waitosaur.updateConfig(locker, unLocker, address(0));
+        waitosaur.updateConfig(address(0));
+
+        vm.prank(owner);
+        vm.expectRevert(WaitosaurBase.InvalidRolesAddresses.selector);
+        waitosaur.updateRoles(address(0), address(0));
     }
 
     function testConfigUpdatedEventEmitted() public {
@@ -184,16 +171,21 @@ contract WaitosaurHolderTest is Test {
         address newUnLocker = address(0x21);
         address newReceiver = address(0x22);
         vm.prank(owner);
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit(true, true, true, true, address(waitosaur));
+        emit WaitosaurBase.RolesUpdated(
+            WaitosaurAccess({locker: newLocker, unlocker: newUnLocker})
+        );
+        waitosaur.updateRoles(newLocker, newUnLocker);
+
+        vm.prank(owner);
+        vm.expectEmit(true, true, true, true, address(waitosaur));
         emit waitosaurSrc.WaitosaurHolder.ConfigUpdated(
-            waitosaurSrc.WaitosaurHolder.WaitosaurConfig({
+            waitosaurSrc.WaitosaurHolderConfig({
                 token: address(token),
-                locker: newLocker,
-                unLocker: newUnLocker,
                 receiver: newReceiver
             })
         );
-        waitosaur.updateConfig(newLocker, newUnLocker, newReceiver);
+        waitosaur.updateConfig(newReceiver);
     }
 
     function testNewConfigUsedForLockUnlock() public {
@@ -201,11 +193,13 @@ contract WaitosaurHolderTest is Test {
         address newUnLocker = address(0x31);
         address newReceiver = address(0x32);
         vm.prank(owner);
-        waitosaur.updateConfig(newLocker, newUnLocker, newReceiver);
+        waitosaur.updateRoles(newLocker, newUnLocker);
+        vm.prank(owner);
+        waitosaur.updateConfig(newReceiver);
 
         // Old locker should fail
         vm.prank(locker);
-        vm.expectRevert(waitosaurSrc.WaitosaurHolder.NotLocker.selector);
+        vm.expectRevert(WaitosaurBase.Unauthorized.selector);
         waitosaur.lock(1 ether);
 
         // New locker should succeed
@@ -215,7 +209,7 @@ contract WaitosaurHolderTest is Test {
 
         // Old unLocker should fail
         vm.prank(unLocker);
-        vm.expectRevert(waitosaurSrc.WaitosaurHolder.NotUnLocker.selector);
+        vm.expectRevert(WaitosaurBase.Unauthorized.selector);
         waitosaur.unlock();
 
         // New unLocker should succeed
