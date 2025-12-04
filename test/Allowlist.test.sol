@@ -115,11 +115,11 @@ contract AllowlistTest is Test {
 
         vm.prank(newOwner);
         allowlist.acceptOwnership();
-        assertEq(allowlist.owner(), newOwner, "ownership transferred");
+        assertEq(allowlist.owner(), newOwner, "ownership was not transferred");
         assertEq(
             allowlist.pendingOwner(),
             address(0),
-            "pending owner is no cleared"
+            "pending owner was not cleared"
         );
     }
 
