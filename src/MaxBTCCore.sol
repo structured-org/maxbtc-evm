@@ -11,9 +11,9 @@ import {MaxBTCERC20} from "./MaxBTCERC20.sol";
 import {WithdrawalToken} from "./WithdrawalToken.sol";
 import {WaitosaurHolder} from "./WaitosaurHolder.sol";
 import {Batch} from "./types/CoreTypes.sol";
-import {IAllowlist} from "./types/IAllowlist.sol";
 import {IExchangeRateProvider} from "./types/IExchangeRateProvider.sol";
 import {WaitosaurObserver} from "./WaitosaurObserver.sol";
+import {Allowlist} from "./Allowlist.sol";
 
 /// @notice Core settlement logic for the maxBTC protocol.
 contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
@@ -177,7 +177,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
 
     function _onlyAllowlisted(address account) internal view {
         CoreConfig storage config = _getCoreConfig();
-        if (!IAllowlist(config.allowlist).isAddressAllowed(account)) {
+        if (!Allowlist(config.allowlist).isAddressAllowed(account)) {
             revert AddressNotAllowed(account);
         }
     }
