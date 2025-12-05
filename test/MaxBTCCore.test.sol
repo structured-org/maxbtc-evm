@@ -271,7 +271,8 @@ contract MaxBTCCoreTest is Test {
         vm.stopPrank();
 
         vm.prank(OPERATOR);
-        (Batch memory processed, bool finalized) = core.tick();
+        bool finalized = core.tick();
+        Batch memory processed = core.finalizedBatch(0);
 
         uint256 depositBeforeFees = (processed.btcRequested *
             1e18 +
@@ -320,8 +321,10 @@ contract MaxBTCCoreTest is Test {
         core.withdraw(2e8);
 
         vm.prank(OPERATOR);
-        (Batch memory processed, bool finalized) = core.tick();
+        bool finalized = core.tick();
         assertFalse(finalized, "should move to withdrawing");
+        (Batch memory processed, bool has) = core.withdrawingBatch();
+        assertTrue(has, "withdrawing batch exists");
         uint256 expectedCollected = (5e7 * (1e18 - DEPOSIT_COST)) / 1e18;
         expectedCollected =
             (expectedCollected * (1e18 - WITHDRAWAL_COST)) /

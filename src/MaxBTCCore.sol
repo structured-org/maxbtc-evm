@@ -69,8 +69,8 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         bool finalized
     );
 
-    event TickIdleNoOp();
-    event TickDepositEthereum(uint256 flushedAmount);
+    event TickIdle();
+    event TickDepositEthereum();
     event TickDepositPending();
     event TickDepositJlp();
     event TickWithdrawJlp();
@@ -577,7 +577,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         external
         notPaused
         onlyOperatorOrOwner
-        returns (Batch memory processedBatch, bool finalized)
+        returns (bool finalized)
     {
         CoreConfig storage config = _getCoreConfig();
         ContractState state = _state();
@@ -589,7 +589,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
 
         if (state == ContractState.Idle) {
             if (batch.maxBtcBurned > 0) {
-                (processedBatch, finalized) = _processWithdrawals(
+                finalized = _processWithdrawals(
                     config,
                     batchState,
                     batch,
@@ -598,38 +598,37 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
                 if (!finalized) {
                     _setState(ContractState.WithdrawJlp);
                 }
-                return (processedBatch, finalized);
+                return (finalized);
             }
             if (depositBalance > 0) {
                 _flushDeposits(config, depositBalance);
                 _setState(ContractState.DepositEthereum);
-                emit TickDepositEthereum(depositBalance);
             }
-            emit TickIdleNoOp();
-            return (processedBatch, finalized);
+            emit TickIdle();
+            return (finalized);
         }
 
         if (state == ContractState.DepositEthereum) {
             _ensureWaitosaurUnlocked(config);
             _setState(ContractState.DepositPending);
-            emit TickDepositPending();
-            return (processedBatch, finalized);
+            emit TickDepositEthereum();
+            return (false);
         }
         if (state == ContractState.DepositPending) {
             _setState(ContractState.DepositJlp);
-            emit TickDepositJlp();
-            return (processedBatch, finalized);
+            emit TickDepositPending();
+            return (false);
         }
         if (state == ContractState.DepositJlp) {
             _setState(ContractState.Idle);
-            emit TickIdleNoOp();
-            return (processedBatch, finalized);
+            emit TickDepositJlp();
+            return (false);
         }
 
         if (state == ContractState.WithdrawJlp) {
             _setState(ContractState.WithdrawPending);
             emit TickWithdrawJlp();
-            return (processedBatch, finalized);
+            return (false);
         }
         if (state == ContractState.WithdrawPending) {
             WaitosaurHolder holder = WaitosaurHolder(config.waitosaurHolder);
@@ -640,7 +639,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             }
             _setState(ContractState.WithdrawEthereum);
             emit TickWithdrawPending(lockedAmount);
-            return (processedBatch, finalized);
+            return (false);
         }
         if (state == ContractState.WithdrawEthereum) {
             _finalizeWithdrawingBatch(batchState.withdrawingBatch);
@@ -649,7 +648,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             emit TickWithdrawEthereumFinalized(
                 batchState.withdrawingBatch.batchId
             );
-            return (processedBatch, finalized);
+            return (finalized);
         }
     }
 
@@ -706,7 +705,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         BatchState storage batchState,
         Batch memory batch,
         uint256 depositBalance
-    ) private returns (Batch memory processedBatch, bool finalized) {
+    ) private returns (bool finalized) {
         (uint256 exchangeRate, uint256 lastUpdated) = _getExchangeRate(config);
         if (block.timestamp - lastUpdated >= config.exchangeRateStalePeriod) {
             revert ExchangeRateStale();
@@ -752,20 +751,18 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             );
         }
 
-        processedBatch = batch;
-
         if (depositBeforeFees <= depositBalance) {
             _addFinalizedBatch(batch);
             finalized = true;
-            batchState.activeBatch = _createNewBatch(batch.batchId + 1);
         } else {
             if (batchState.hasWithdrawingBatch) {
                 revert WithdrawingBatchAlreadyExists();
             }
             batchState.withdrawingBatch = batch;
             batchState.hasWithdrawingBatch = true;
-            batchState.activeBatch = _createNewBatch(batch.batchId + 1);
         }
+
+        batchState.activeBatch = _createNewBatch(batch.batchId + 1);
 
         emit BatchProcessed(
             batch.batchId,
@@ -781,10 +778,6 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     ) private {
         if (depositBalance == 0) {
             return;
-        }
-
-        if (config.waitosaurObserver == address(0)) {
-            revert InvalidWaitosaurObserverAddress();
         }
 
         WaitosaurObserver(config.waitosaurObserver).lock(depositBalance);

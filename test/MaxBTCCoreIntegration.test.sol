@@ -237,8 +237,9 @@ contract MaxBTCCoreIntegrationTest is Test {
 
         // Operator processes batch; fully covered by deposits so it finalizes immediately.
         vm.prank(OPERATOR);
-        (Batch memory processed, bool finalized) = core.tick();
+        bool finalized = core.tick();
         assertTrue(finalized, "batch should finalize");
+        Batch memory processed = core.finalizedBatch(0);
 
         // Check manager received the payout and fee collector got the fee.
         uint256 expectedCollected = processed.collectedAmount;
@@ -467,9 +468,9 @@ contract MaxBTCCoreIntegrationTest is Test {
         core.withdraw(5e7);
         vm.stopPrank();
         vm.prank(OPERATOR);
-        (Batch memory processed, bool finalizedBefore) = core.tick();
+        bool finalizedBefore = core.tick();
         assertTrue(finalizedBefore, "finalized pre-upgrade");
-        Batch memory storedBefore = core.finalizedBatch(processed.batchId);
+        Batch memory storedBefore = core.finalizedBatch(0);
         uint256 activeBatchIdBefore = core.activeBatch().batchId;
         uint256 supplyBefore = maxbtc.totalSupply();
 
@@ -482,7 +483,7 @@ contract MaxBTCCoreIntegrationTest is Test {
             activeBatchIdBefore,
             "batch id kept"
         );
-        Batch memory storedAfter = core.finalizedBatch(processed.batchId);
+        Batch memory storedAfter = core.finalizedBatch(0);
         assertEq(
             storedAfter.collectedAmount,
             storedBefore.collectedAmount,
@@ -664,7 +665,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.prank(USER);
         core.withdraw(5e7);
         vm.prank(OPERATOR);
-        (Batch memory processed, ) = core.tick();
+        core.tick();
+        Batch memory processed = core.finalizedBatch(0);
         assertGt(processed.collectedAmount, 0, "processed withdrawal");
     }
 
