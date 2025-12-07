@@ -146,6 +146,7 @@ contract MaxBTCCoreTest is Test {
             "maxBTC",
             "maxBTC"
         );
+        maxbtc.setEurekaRateLimits(1e18, 1e18); // needed for ICS20 to be allowed to mint
 
         withdrawalToken.initialize(
             address(this),

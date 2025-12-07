@@ -207,6 +207,10 @@ contract MaxBTCCoreIntegrationTest is Test {
             address(maxbtc)
         );
 
+        // address(this) plays role of ics20 for maxBTC ERC20 contract, hence
+        // it will need some rate limits allowance to pass these tests
+        maxbtc.setEurekaRateLimits(1e18, 1e18);
+
         // Manager needs to know core for finalized batch lookups
         vm.prank(address(this));
         manager.updateConfig(

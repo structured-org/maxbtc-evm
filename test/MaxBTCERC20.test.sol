@@ -27,7 +27,7 @@ contract MaxBTCERC20Test is Test {
     }
 
     function testMintSuccess() external {
-        vm.startPrank(ICS20);
+        vm.startPrank(CORE);
         maxBtcErc20.mint(ESCROW, 100);
         assertEq(maxBtcErc20.balanceOf(ESCROW), 100);
     }
@@ -44,14 +44,14 @@ contract MaxBTCERC20Test is Test {
     }
 
     function testBurnSuccess() external {
-        vm.startPrank(ICS20);
+        vm.startPrank(CORE);
         maxBtcErc20.mint(ESCROW, 100);
         maxBtcErc20.burn(ESCROW, 20);
         assertEq(maxBtcErc20.balanceOf(ESCROW), 80);
     }
 
     function testBurnUnauthorized() external {
-        vm.startPrank(ICS20);
+        vm.startPrank(CORE);
         maxBtcErc20.mint(ESCROW, 100);
         vm.startPrank(OWNER);
         vm.expectRevert(
@@ -61,5 +61,53 @@ contract MaxBTCERC20Test is Test {
             )
         );
         maxBtcErc20.burn(ESCROW, 20);
+    }
+
+    function testMintSuccessRateLimited() external {
+        vm.startPrank(OWNER);
+        maxBtcErc20.setEurekaRateLimits(100, 0);
+        vm.startPrank(ICS20);
+        maxBtcErc20.mint(ESCROW, 100);
+        assertEq(maxBtcErc20.balanceOf(ESCROW), 100);
+    }
+
+    function testMintFailureRateLimited() external {
+        vm.startPrank(OWNER);
+        maxBtcErc20.setEurekaRateLimits(100, 0);
+        vm.startPrank(ICS20);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MaxBTCERC20.EurekaRateLimitsExceeded.selector,
+                120,
+                100
+            )
+        );
+        maxBtcErc20.mint(ESCROW, 120);
+    }
+
+        function testBurnSuccessRateLimited() external {
+        vm.startPrank(CORE);
+        maxBtcErc20.mint(ESCROW, 100);
+        vm.startPrank(OWNER);
+        maxBtcErc20.setEurekaRateLimits(0, 100);
+        vm.startPrank(ICS20);
+        maxBtcErc20.burn(ESCROW, 20);
+        assertEq(maxBtcErc20.balanceOf(ESCROW), 80);
+    }
+
+    function testBurnFailureRateLimited() external {
+        vm.startPrank(CORE);
+        maxBtcErc20.mint(ESCROW, 100);
+        vm.startPrank(OWNER);
+        maxBtcErc20.setEurekaRateLimits(0, 100);
+        vm.startPrank(ICS20);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MaxBTCERC20.EurekaRateLimitsExceeded.selector,
+                120,
+                100
+            )
+        );
+        maxBtcErc20.burn(ESCROW, 120);
     }
 }
