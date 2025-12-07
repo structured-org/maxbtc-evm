@@ -29,8 +29,8 @@ contract MaxBTCERC20 is
     /// @param limit Allowed amount of tokens to burn/mint
     error EurekaRateLimitsExceeded(uint256 requested, uint256 limit);
 
-    event ConfigUpdated(address indexed updater, address ics20, address core);
-    event EurekaRateLimitsUpdated(address indexed updater, uint256 inbound, uint256 outbound);
+    event ConfigUpdated(address updater, address ics20, address core);
+    event EurekaRateLimitsUpdated(address updater, uint256 inbound, uint256 outbound);
 
     struct Config {
         address ics20;
