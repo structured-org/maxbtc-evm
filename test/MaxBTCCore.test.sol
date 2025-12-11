@@ -142,10 +142,10 @@ contract MaxBTCCoreTest is Test {
         maxbtc.initialize(
             address(this),
             address(this), // ICS20 for test mints
-            address(core),
             "maxBTC",
             "maxBTC"
         );
+        maxbtc.initializeV2(address(core));
         maxbtc.setEurekaRateLimits(1e18, 1e18); // needed for ICS20 to be allowed to mint
 
         withdrawalToken.initialize(
