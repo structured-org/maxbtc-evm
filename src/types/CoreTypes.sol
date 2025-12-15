@@ -9,6 +9,9 @@ struct Batch {
     uint256 maxBtcBurned;
     /// If in FINALIZED state, how much BTC was actually collected?
     uint256 collectedAmount;
+    /// Snapshot of deposits held when the batch was moved to WITHDRAWING
+    /// (mirrors `collector_historical_balance` in the Rust core for reconciliation)
+    uint256 collectorHistoricalBalance;
     /// Number of decimals carried by the `deposit_denom` asset
     uint256 depositDecimals;
 }
