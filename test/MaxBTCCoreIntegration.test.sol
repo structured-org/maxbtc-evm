@@ -180,10 +180,10 @@ contract MaxBTCCoreIntegrationTest is Test {
         maxbtc.initialize(
             address(this),
             address(this),
-            address(core),
             "maxBTC",
             "maxBTC"
         );
+        maxbtc.initializeV2(address(core));
         withdrawalToken.initialize(
             address(this),
             address(core),
@@ -206,6 +206,10 @@ contract MaxBTCCoreIntegrationTest is Test {
             1,
             address(maxbtc)
         );
+
+        // address(this) plays role of ics20 for maxBTC ERC20 contract, hence
+        // it will need some rate limits allowance to pass these tests
+        maxbtc.setEurekaRateLimits(1e18, 1e18);
 
         // Manager needs to know core for finalized batch lookups
         vm.prank(address(this));
