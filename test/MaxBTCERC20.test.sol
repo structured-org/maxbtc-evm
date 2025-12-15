@@ -17,13 +17,14 @@ contract MaxBTCERC20Test is Test {
         MaxBTCERC20 implementation = new MaxBTCERC20();
         bytes memory maxBTCERC20InitializeCall = abi.encodeCall(
             MaxBTCERC20.initialize,
-            (OWNER, ICS20, CORE, "Structured maxBTC", "maxBTC")
+            (OWNER, ICS20, "Structured maxBTC", "maxBTC")
         );
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(implementation),
             maxBTCERC20InitializeCall
         );
         maxBtcErc20 = MaxBTCERC20(address(proxy));
+        maxBtcErc20.initializeV2(CORE);
     }
 
     function testMintSuccess() external {

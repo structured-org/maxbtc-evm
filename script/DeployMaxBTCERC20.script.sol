@@ -13,13 +13,12 @@ contract DeployMaxBTCERC20 is Script {
         address implementation = vm.envAddress("IMPLEMENTATION");
         address owner = vm.envAddress("OWNER");
         address ics20 = vm.envAddress("ICS20");
-        address core = vm.envAddress("CORE");
         string memory name = vm.envString("TOKEN_NAME");
         string memory symbol = vm.envString("TOKEN_SYMBOL");
 
         bytes memory initializeCall = abi.encodeCall(
             MaxBTCERC20.initialize,
-            (owner, ics20, core, name, symbol)
+            (owner, ics20, name, symbol)
         );
 
         vm.startBroadcast();
@@ -31,7 +30,6 @@ contract DeployMaxBTCERC20 is Script {
         console.log("  Implementation:     ", implementation);
         console.log("  Owner:              ", owner);
         console.log("  ICS20:              ", ics20);
-        console.log("  CORE:               ", core);
         console.log("  Name:               ", name);
         console.log("  Symbol:             ", symbol);
     }

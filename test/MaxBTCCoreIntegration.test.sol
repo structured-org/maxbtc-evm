@@ -180,10 +180,10 @@ contract MaxBTCCoreIntegrationTest is Test {
         maxbtc.initialize(
             address(this),
             address(this),
-            address(core),
             "maxBTC",
             "maxBTC"
         );
+        maxbtc.initializeV2(address(core));
         withdrawalToken.initialize(
             address(this),
             address(core),
