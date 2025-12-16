@@ -605,7 +605,6 @@ contract MaxBTCCore is
 
         Batch storage batch = _activeBatch();
         batch.maxBtcBurned += maxBtcAmount;
-        MaxBTCERC20(config.maxBtcToken).burn(_msgSender(), maxBtcAmount);
         uint256 batchId = batch.batchId;
         WithdrawalToken(config.withdrawalToken).mint(
             _msgSender(),
@@ -683,6 +682,10 @@ contract MaxBTCCore is
             if (lockedAmount > 0) {
                 batchState.withdrawingBatch.collectedAmount += lockedAmount;
                 holder.unlock();
+                MaxBTCERC20(config.maxBtcToken).burn(
+                    _msgSender(),
+                    batchState.withdrawingBatch.maxBtcBurned
+                );
             }
             _setState(ContractState.WithdrawEthereum);
             emit TickWithdrawPending(lockedAmount);
