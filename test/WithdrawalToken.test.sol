@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
-import {WithdrawalToken} from "../src/WithdrawalToken.sol";
-import {
-    ERC1967Proxy
-} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { Test } from "forge-std/Test.sol";
+import { WithdrawalToken } from "../src/WithdrawalToken.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract WithdrawalTokenTest is Test {
     WithdrawalToken internal token;
@@ -17,13 +15,9 @@ contract WithdrawalTokenTest is Test {
     function setUp() public {
         WithdrawalToken implementation = new WithdrawalToken();
         bytes memory initData = abi.encodeCall(
-            WithdrawalToken.initialize,
-            (owner, core, "https://api.example.com/", "WithdrawalToken", "WRT-")
+            WithdrawalToken.initialize, (owner, core, "https://api.example.com/", "WithdrawalToken", "WRT-")
         );
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(implementation),
-            initData
-        );
+        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         token = WithdrawalToken(address(proxy));
         // Ownership is set to `owner` in initialize, so we need to prank as owner for owner-only functions
     }
@@ -59,9 +53,7 @@ contract WithdrawalTokenTest is Test {
         token.mint(user, 1, 10, "");
         address attacker = address(0x9999);
         vm.prank(attacker);
-        bytes4 selector = bytes4(
-            keccak256("ERC1155MissingApprovalForAll(address,address)")
-        );
+        bytes4 selector = bytes4(keccak256("ERC1155MissingApprovalForAll(address,address)"));
         vm.expectRevert(abi.encodeWithSelector(selector, attacker, user));
         token.burn(user, 1, 1);
     }
@@ -88,12 +80,7 @@ contract WithdrawalTokenTest is Test {
 
     function testUpdateCoreAddressNotOwnerReverts() public {
         address newCore = address(0xDEAD);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                OwnableUnauthorizedAccount.selector,
-                address(this)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, address(this)));
         token.updateCoreAddress(newCore);
     }
 }

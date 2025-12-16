@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { Test } from "forge-std/Test.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import {WaitosaurObserver, WaitosaurObserverConfig, IAumOracle} from "../src/WaitosaurObserver.sol";
-import {WaitosaurBase, WaitosaurState, WaitosaurAccess} from "../src/WaitosaurBase.sol";
+import { WaitosaurObserver, WaitosaurObserverConfig, IAumOracle } from "../src/WaitosaurObserver.sol";
+import { WaitosaurBase, WaitosaurState, WaitosaurAccess } from "../src/WaitosaurBase.sol";
 
 /// @notice Simple mock oracle returning a preset balance
 contract MockAumOracle is IAumOracle {
@@ -16,9 +16,7 @@ contract MockAumOracle is IAumOracle {
     }
 
     /// @notice Always returns the preset balance (ignores the asset name)
-    function getSpotBalance(
-        string calldata
-    ) external view override returns (uint256) {
+    function getSpotBalance(string calldata) external view override returns (uint256) {
         return _balance;
     }
 }
@@ -127,7 +125,7 @@ contract WaitosaurObserverTest is Test {
     // -------------------------------------------------------------
 
     function testLockByLocker() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -172,7 +170,7 @@ contract WaitosaurObserverTest is Test {
     // -------------------------------------------------------------
 
     function testUnlockSuccess() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -187,7 +185,7 @@ contract WaitosaurObserverTest is Test {
     }
 
     function testUnlockByOwnerAllowed() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -201,7 +199,7 @@ contract WaitosaurObserverTest is Test {
     }
 
     function testUnlockInsufficientBalanceReverts() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -220,7 +218,7 @@ contract WaitosaurObserverTest is Test {
     }
 
     function testUnlockUnauthorizedReverts() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -326,12 +324,7 @@ contract WaitosaurObserverTest is Test {
     function testUpgradeToV2RevertsForNonOwner() public {
         WaitosaurObserverV2 implV2 = new WaitosaurObserverV2();
 
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "OwnableUnauthorizedAccount(address)",
-                address(this)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", address(this)));
 
         observer.upgradeToAndCall(address(implV2), "");
     }

@@ -1,32 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {MaxBTCCore} from "../src/MaxBTCCore.sol";
-import {MaxBTCERC20} from "../src/MaxBTCERC20.sol";
-import {WithdrawalToken} from "../src/WithdrawalToken.sol";
-import {WithdrawalManager} from "../src/WithdrawalManager.sol";
-import {WaitosaurBase} from "../src/WaitosaurBase.sol";
-import {WaitosaurHolder} from "../src/WaitosaurHolder.sol";
-import {WaitosaurObserver, IAumOracle} from "../src/WaitosaurObserver.sol";
-import {Allowlist} from "../src/Allowlist.sol";
-import {FeeCollector} from "../src/FeeCollector.sol";
-import {Receiver} from "../src/Receiver.sol";
-import {Batch} from "../src/types/CoreTypes.sol";
+import { Test } from "forge-std/Test.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { MaxBTCCore } from "../src/MaxBTCCore.sol";
+import { MaxBTCERC20 } from "../src/MaxBTCERC20.sol";
+import { WithdrawalToken } from "../src/WithdrawalToken.sol";
+import { WithdrawalManager } from "../src/WithdrawalManager.sol";
+import { WaitosaurBase } from "../src/WaitosaurBase.sol";
+import { WaitosaurHolder } from "../src/WaitosaurHolder.sol";
+import { WaitosaurObserver, IAumOracle } from "../src/WaitosaurObserver.sol";
+import { Allowlist } from "../src/Allowlist.sol";
+import { FeeCollector } from "../src/FeeCollector.sol";
+import { Receiver } from "../src/Receiver.sol";
+import { Batch } from "../src/types/CoreTypes.sol";
 
 /// @notice Lightweight mock ERC20 with configurable decimals for WBTC-like asset.
 contract MockERC20 is ERC20 {
     uint8 private immutable _DECIMALS;
 
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_
-    ) ERC20(name_, symbol_) {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
         _DECIMALS = decimals_;
     }
 
@@ -48,7 +44,11 @@ contract MockAumOracle is IAumOracle {
 
     function getSpotBalance(
         string calldata /* asset */
-    ) external view returns (uint256) {
+    )
+        external
+        view
+        returns (uint256)
+    {
         return balance;
     }
 }
@@ -95,10 +95,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         wbtc = new MockERC20("WBTC", "WBTC", 8);
         provider = new Receiver(address(this));
         Allowlist allowlistImpl = new Allowlist();
-        ERC1967Proxy allowlistProxy = new ERC1967Proxy(
-            address(allowlistImpl),
-            abi.encodeCall(Allowlist.initialize, (address(this)))
-        );
+        ERC1967Proxy allowlistProxy =
+            new ERC1967Proxy(address(allowlistImpl), abi.encodeCall(Allowlist.initialize, (address(this))));
         allowlist = Allowlist(address(allowlistProxy));
         allowlist.allow(_arr(USER));
         oracle = new MockAumOracle();
@@ -108,36 +106,23 @@ contract MaxBTCCoreIntegrationTest is Test {
 
         // Deploy proxies (uninitialized), so we can pass addresses into core init.
         ERC1967Proxy maxbtcProxy = new ERC1967Proxy(address(maxbtcImpl), "");
-        ERC1967Proxy withdrawalProxy = new ERC1967Proxy(
-            address(withdrawalTokenImpl),
-            ""
-        );
+        ERC1967Proxy withdrawalProxy = new ERC1967Proxy(address(withdrawalTokenImpl), "");
         ERC1967Proxy managerProxy = new ERC1967Proxy(address(managerImpl), "");
-        ERC1967Proxy feeCollectorProxy = new ERC1967Proxy(
-            address(feeCollectorImpl),
-            ""
-        );
+        ERC1967Proxy feeCollectorProxy = new ERC1967Proxy(address(feeCollectorImpl), "");
 
         // Initialize core with the real addresses.
         ERC1967Proxy waitosaurProxy = new ERC1967Proxy(
             address(waitosaurHolderImpl),
             abi.encodeCall(
                 WaitosaurHolder.initialize,
-                (
-                    address(this),
-                    address(wbtc),
-                    OPERATOR,
-                    address(this),
-                    address(managerProxy)
-                )
+                (address(this), address(wbtc), OPERATOR, address(this), address(managerProxy))
             )
         );
         waitosaurHolder = WaitosaurHolder(address(waitosaurProxy));
         ERC1967Proxy waitosaurObserverProxy = new ERC1967Proxy(
             address(waitosaurObserverImpl),
             abi.encodeCall(
-                WaitosaurObserver.initialize,
-                (address(this), address(this), OPERATOR, address(oracle), "BTC")
+                WaitosaurObserver.initialize, (address(this), address(this), OPERATOR, address(oracle), "BTC")
             )
         );
         waitosaurObserver = WaitosaurObserver(address(waitosaurObserverProxy));
@@ -177,35 +162,12 @@ contract MaxBTCCoreIntegrationTest is Test {
         waitosaurHolder.updateConfig(address(manager));
 
         // Now initialize dependent contracts with the finalized core address.
-        maxbtc.initialize(
-            address(this),
-            address(this),
-            "maxBTC",
-            "maxBTC"
-        );
+        maxbtc.initialize(address(this), address(this), "maxBTC", "maxBTC");
         maxbtc.initializeV2(address(core));
-        withdrawalToken.initialize(
-            address(this),
-            address(core),
-            "ipfs://base/",
-            "Redemption",
-            "rMAX-"
-        );
-        manager.initialize(
-            address(this),
-            address(core),
-            address(wbtc),
-            address(withdrawalToken)
-        );
+        withdrawalToken.initialize(address(this), address(core), "ipfs://base/", "Redemption", "rMAX-");
+        manager.initialize(address(this), address(core), address(wbtc), address(withdrawalToken));
         feeCollector = FeeCollector(address(feeCollectorProxy));
-        feeCollector.initialize(
-            OWNER,
-            address(core),
-            address(provider),
-            FEE_REDUCTION,
-            1,
-            address(maxbtc)
-        );
+        feeCollector.initialize(OWNER, address(core), address(provider), FEE_REDUCTION, 1, address(maxbtc));
 
         // address(this) plays role of ics20 for maxBTC ERC20 contract, hence
         // it will need some rate limits allowance to pass these tests
@@ -213,11 +175,7 @@ contract MaxBTCCoreIntegrationTest is Test {
 
         // Manager needs to know core for finalized batch lookups
         vm.prank(address(this));
-        manager.updateConfig(
-            address(core),
-            address(wbtc),
-            address(withdrawalToken)
-        );
+        manager.updateConfig(address(core), address(wbtc), address(withdrawalToken));
     }
 
     function testIntegrationDepositWithdrawRedeem() external {
@@ -248,39 +206,17 @@ contract MaxBTCCoreIntegrationTest is Test {
         // Check manager received the payout and fee collector got the fee.
         uint256 expectedCollected = processed.collectedAmount;
         assertGt(expectedCollected, 0, "collected positive");
-        assertEq(
-            wbtc.balanceOf(address(manager)),
-            expectedCollected,
-            "manager funded"
-        );
-        assertGt(
-            wbtc.balanceOf(address(feeCollector)),
-            0,
-            "fee collector funded"
-        );
+        assertEq(wbtc.balanceOf(address(manager)), expectedCollected, "manager funded");
+        assertGt(wbtc.balanceOf(address(feeCollector)), 0, "fee collector funded");
 
         // User redeems withdrawal token through manager
         vm.startPrank(USER);
-        withdrawalToken.safeTransferFrom(
-            USER,
-            address(manager),
-            processed.batchId,
-            burnAmount,
-            ""
-        );
+        withdrawalToken.safeTransferFrom(USER, address(manager), processed.batchId, burnAmount, "");
         vm.stopPrank();
 
         // Redemption should burn redemption tokens and send collectedAmount to the user.
-        assertEq(
-            withdrawalToken.totalSupply(processed.batchId),
-            0,
-            "redemption tokens burned"
-        );
-        assertEq(
-            wbtc.balanceOf(USER),
-            expectedCollected,
-            "user received redemption payout"
-        );
+        assertEq(withdrawalToken.totalSupply(processed.batchId), 0, "redemption tokens burned");
+        assertEq(wbtc.balanceOf(USER), expectedCollected, "user received redemption payout");
     }
 
     function testDepositCycleTicksFollowFsm() external {
@@ -348,11 +284,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         uint256 expectedCovered = (5e7 * (1e18 - DEPOSIT_COST)) / 1e18;
         expectedCovered = (expectedCovered * (1e18 - WITHDRAWAL_COST)) / 1e18;
         uint256 expectedTotal = expectedCovered + lockedAmount;
-        assertEq(
-            wbtc.balanceOf(address(manager)),
-            expectedTotal,
-            "manager got collected + partial"
-        );
+        assertEq(wbtc.balanceOf(address(manager)), expectedTotal, "manager got collected + partial");
         assertEq(waitosaurHolder.lockedAmount(), 0, "holder unlocked");
 
         // Finalize and return to Idle
@@ -384,11 +316,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         feeCollector.collectFee();
         uint256 minted = maxbtc.balanceOf(address(feeCollector));
         assertGt(minted, 0, "fee minted");
-        assertEq(
-            maxbtc.totalSupply(),
-            totalSupplyBefore + minted,
-            "supply increased by minted fee"
-        );
+        assertEq(maxbtc.totalSupply(), totalSupplyBefore + minted, "supply increased by minted fee");
 
         // Claim minted fees to treasury
         vm.prank(OWNER);
@@ -401,9 +329,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         wbtc.mint(USER, 1e8);
         vm.startPrank(USER);
         wbtc.approve(address(core), 1e8);
-        vm.expectRevert(
-            abi.encodeWithSelector(MaxBTCCore.AddressNotAllowed.selector, USER)
-        );
+        vm.expectRevert(abi.encodeWithSelector(MaxBTCCore.AddressNotAllowed.selector, USER));
         core.deposit(1e8, USER, 0);
         vm.stopPrank();
     }
@@ -415,13 +341,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.startPrank(USER);
         wbtc.approve(address(core), amount);
         uint256 minted = (amount * (1e18 - DEPOSIT_COST)) / 1e18;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                MaxBTCCore.SlippageLimitExceeded.selector,
-                minted + 1,
-                minted
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(MaxBTCCore.SlippageLimitExceeded.selector, minted + 1, minted));
         core.deposit(amount, USER, minted + 1);
         vm.stopPrank();
     }
@@ -482,17 +402,9 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.prank(OWNER);
         core.upgradeToAndCall(address(newImpl), "");
         assertEq(CoreV2(address(core)).version(), "v2");
-        assertEq(
-            core.activeBatch().batchId,
-            activeBatchIdBefore,
-            "batch id kept"
-        );
+        assertEq(core.activeBatch().batchId, activeBatchIdBefore, "batch id kept");
         Batch memory storedAfter = core.finalizedBatch(0);
-        assertEq(
-            storedAfter.collectedAmount,
-            storedBefore.collectedAmount,
-            "finalized batch kept"
-        );
+        assertEq(storedAfter.collectedAmount, storedBefore.collectedAmount, "finalized batch kept");
 
         // Post-upgrade operations still work
         wbtc.mint(USER, depositAmount);
@@ -500,11 +412,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         wbtc.approve(address(core), depositAmount);
         core.deposit(depositAmount, USER, 0);
         vm.stopPrank();
-        assertGt(
-            maxbtc.totalSupply(),
-            supplyBefore,
-            "post-upgrade deposit works"
-        );
+        assertGt(maxbtc.totalSupply(), supplyBefore, "post-upgrade deposit works");
     }
 
     function testMultiCycleInterleavedFsmAndLockCarryOver() external {
@@ -640,11 +548,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         assertEq(uint8(core.contractState()), 0, "returned idle");
         vm.prank(OPERATOR);
         core.tick(); // flush extra deposit from Idle
-        assertEq(
-            wbtc.balanceOf(DEPOSIT_FORWARDER) - forwarderBefore,
-            extraDeposit,
-            "forwarder still receives flush"
-        );
+        assertEq(wbtc.balanceOf(DEPOSIT_FORWARDER) - forwarderBefore, extraDeposit, "forwarder still receives flush");
     }
 
     function testAllowlistToggleMidSession() external {
@@ -658,9 +562,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         // Disallow user blocks further deposits
         allowlist.deny(_arr(USER));
         vm.startPrank(USER);
-        vm.expectRevert(
-            abi.encodeWithSelector(MaxBTCCore.AddressNotAllowed.selector, USER)
-        );
+        vm.expectRevert(abi.encodeWithSelector(MaxBTCCore.AddressNotAllowed.selector, USER));
         core.deposit(1, USER, 0);
         vm.stopPrank();
 
@@ -715,11 +617,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         uint256 minReceive = (amount * (1e18 - nearMax)) / 1e18;
         core.deposit(amount, USER, minReceive);
         vm.stopPrank();
-        assertEq(
-            maxbtc.balanceOf(USER),
-            1e8 + minReceive,
-            "minted with high fee"
-        );
+        assertEq(maxbtc.balanceOf(USER), 1e8 + minReceive, "minted with high fee");
     }
 
     function testMinReceiveFailsOnWorseErAfterApproval() external {
@@ -733,13 +631,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.stopPrank();
         provider.publish(2e18, block.timestamp);
         vm.startPrank(USER);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                MaxBTCCore.SlippageLimitExceeded.selector,
-                minReceive,
-                minReceive / 2
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(MaxBTCCore.SlippageLimitExceeded.selector, minReceive, minReceive / 2));
         core.deposit(amount, USER, minReceive);
         vm.stopPrank();
     }
@@ -750,11 +642,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         waitosaurHolder.updateRoles(OPERATOR, address(core));
         // Drain holder balance to force insufficient balance on unlock
         vm.startPrank(address(waitosaurHolder));
-        SafeERC20.safeTransfer(
-            IERC20(address(wbtc)),
-            address(0xdead),
-            wbtc.balanceOf(address(waitosaurHolder))
-        );
+        SafeERC20.safeTransfer(IERC20(address(wbtc)), address(0xdead), wbtc.balanceOf(address(waitosaurHolder)));
         vm.stopPrank();
         vm.prank(OPERATOR);
         vm.expectRevert(WaitosaurBase.InsufficientAssetAmount.selector);
@@ -834,35 +722,17 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.prank(OPERATOR);
         core.tick();
         Batch memory finalized = core.finalizedBatch(0);
-        uint256 totalSupplyRedemption = withdrawalToken.totalSupply(
-            finalized.batchId
-        );
+        uint256 totalSupplyRedemption = withdrawalToken.totalSupply(finalized.batchId);
         assertEq(totalSupplyRedemption, 1e8, "redemption supply");
 
         // Each redeems half
         vm.startPrank(user1);
-        withdrawalToken.safeTransferFrom(
-            user1,
-            address(manager),
-            finalized.batchId,
-            5e7,
-            ""
-        );
+        withdrawalToken.safeTransferFrom(user1, address(manager), finalized.batchId, 5e7, "");
         vm.stopPrank();
         vm.startPrank(user2);
-        withdrawalToken.safeTransferFrom(
-            user2,
-            address(manager),
-            finalized.batchId,
-            5e7,
-            ""
-        );
+        withdrawalToken.safeTransferFrom(user2, address(manager), finalized.batchId, 5e7, "");
         vm.stopPrank();
-        assertEq(
-            withdrawalToken.totalSupply(finalized.batchId),
-            0,
-            "all redemption burned"
-        );
+        assertEq(withdrawalToken.totalSupply(finalized.batchId), 0, "all redemption burned");
         // Manager transfers proportionally
         uint256 expectedUser = (finalized.collectedAmount * 5e7) / 1e8;
         assertEq(wbtc.balanceOf(user1), expectedUser);

@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
 /// @notice Minimal external interface for ZKMe-like approval checker.
 interface IZkMe {
-    function hasApproved(
-        address cooperator,
-        address user
-    ) external view returns (bool);
+    function hasApproved(address cooperator, address user) external view returns (bool);
 }
 
 /// @notice Simple allowlist contract with optional ZKMe fallback, adapted from the Rust implementation.
@@ -32,11 +29,7 @@ contract Allowlist is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
 
     event AddressAllowed(address indexed account);
     event AddressDenied(address indexed account);
-    event ZkMeSettingsUpdated(
-        address contractAddr,
-        address cooperator,
-        bool enabled
-    );
+    event ZkMeSettingsUpdated(address contractAddr, address cooperator, bool enabled);
     event ZkMeSettingsReset();
 
     error ZeroAddressNotAllowed();
@@ -82,26 +75,15 @@ contract Allowlist is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         }
     }
 
-    function setZkMeSettings(
-        address contractAddr,
-        address cooperator
-    ) external onlyOwner {
+    function setZkMeSettings(address contractAddr, address cooperator) external onlyOwner {
         if (contractAddr == address(0) && cooperator == address(0)) {
-            _getStorage().zkMe = ZkMeSettings({
-                contractAddr: address(0),
-                cooperator: address(0),
-                enabled: false
-            });
+            _getStorage().zkMe = ZkMeSettings({ contractAddr: address(0), cooperator: address(0), enabled: false });
             emit ZkMeSettingsReset();
         } else {
             if (contractAddr == address(0) || cooperator == address(0)) {
                 revert ZeroAddressNotAllowed();
             }
-            _getStorage().zkMe = ZkMeSettings({
-                contractAddr: contractAddr,
-                cooperator: cooperator,
-                enabled: true
-            });
+            _getStorage().zkMe = ZkMeSettings({ contractAddr: contractAddr, cooperator: cooperator, enabled: true });
 
             emit ZkMeSettingsUpdated(contractAddr, cooperator, true);
         }
@@ -113,11 +95,7 @@ contract Allowlist is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             return true;
         }
         if ($.zkMe.enabled) {
-            return
-                IZkMe($.zkMe.contractAddr).hasApproved(
-                    $.zkMe.cooperator,
-                    account
-                );
+            return IZkMe($.zkMe.contractAddr).hasApproved($.zkMe.cooperator, account);
         }
         return false;
     }
@@ -126,7 +104,5 @@ contract Allowlist is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         return _getStorage().zkMe;
     }
 
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 }

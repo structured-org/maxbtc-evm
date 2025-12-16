@@ -1,20 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test, console2} from "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {FeeCollector, IReceiver, ICoreContract} from "../src/FeeCollector.sol"; // adjust the path if needed
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { Test, console2 } from "forge-std/Test.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { FeeCollector, IReceiver, ICoreContract } from "../src/FeeCollector.sol"; // adjust the path if needed
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockERC20 is ERC20 {
     uint8 public immutable DECIMALS;
 
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_
-    ) ERC20(name_, symbol_) {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
         DECIMALS = decimals_;
     }
 
@@ -90,7 +86,10 @@ contract FeeCollectorTest is Test {
         uint256 feeApyReductionPercentage_,
         uint64 collectionPeriodSeconds_,
         address feeToken_
-    ) internal returns (FeeCollector) {
+    )
+        internal
+        returns (FeeCollector)
+    {
         FeeCollector impl = new FeeCollector();
         bytes memory data = abi.encodeWithSelector(
             FeeCollector.initialize.selector,
@@ -125,18 +124,9 @@ contract FeeCollectorTest is Test {
         FeeCollector.State memory st = feeCollector.getState();
 
         console2.log("Initial coreContract:", cfg.coreContract);
-        console2.log(
-            "Initial feeApyReductionPercentage:",
-            cfg.feeApyReductionPercentage
-        );
-        console2.log(
-            "Initial collectionPeriodSeconds:",
-            cfg.collectionPeriodSeconds
-        );
-        console2.log(
-            "Initial lastCollectionTimestamp:",
-            st.lastCollectionTimestamp
-        );
+        console2.log("Initial feeApyReductionPercentage:", cfg.feeApyReductionPercentage);
+        console2.log("Initial collectionPeriodSeconds:", cfg.collectionPeriodSeconds);
+        console2.log("Initial lastCollectionTimestamp:", st.lastCollectionTimestamp);
         console2.log("Initial lastExchangeRate:", st.lastExchangeRate);
     }
 
@@ -224,25 +214,13 @@ contract FeeCollectorTest is Test {
         FeeCollector.State memory st = feeCollector.getState();
 
         assertEq(cfg.coreContract, address(core), "coreContract mismatch");
-        assertEq(
-            cfg.feeApyReductionPercentage,
-            0.1e18,
-            "fee reduction mismatch"
-        );
-        assertEq(
-            cfg.collectionPeriodSeconds,
-            3600,
-            "collection period mismatch"
-        );
+        assertEq(cfg.feeApyReductionPercentage, 0.1e18, "fee reduction mismatch");
+        assertEq(cfg.collectionPeriodSeconds, 3600, "collection period mismatch");
         assertEq(address(cfg.feeToken), address(maxbtc), "fee token mismatch");
 
         (uint256 coreRate, uint256 coreTs) = core.getLatest();
         assertEq(st.lastExchangeRate, coreRate, "lastExchangeRate mismatch");
-        assertEq(
-            st.lastCollectionTimestamp,
-            coreTs,
-            "lastCollectionTimestamp mismatch"
-        );
+        assertEq(st.lastCollectionTimestamp, coreTs, "lastCollectionTimestamp mismatch");
     }
 
     // --------------------------------------
@@ -261,9 +239,7 @@ contract FeeCollectorTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                FeeCollector.NegativeOrZeroApy.selector,
-                core.exchangeRate(),
-                feeCollector.getState().lastExchangeRate
+                FeeCollector.NegativeOrZeroApy.selector, core.exchangeRate(), feeCollector.getState().lastExchangeRate
             )
         );
         feeCollector.collectFee();
@@ -280,11 +256,7 @@ contract FeeCollectorTest is Test {
 
         feeCollector.collectFee();
 
-        assertEq(
-            core.lastMintedAmount(),
-            prevMinted,
-            "no fee should be minted"
-        );
+        assertEq(core.lastMintedAmount(), prevMinted, "no fee should be minted");
 
         FeeCollector.State memory st = feeCollector.getState();
         console2.log("State after collectFee with zero supply:");
@@ -304,19 +276,11 @@ contract FeeCollectorTest is Test {
         uint256 prevTotalSupply = maxbtc.totalSupply();
         uint256 prevCollectorBalance = maxbtc.balanceOf(address(feeCollector));
         uint256 expectedMint = feeCollector.calculateFeeToMint(
-            oldRate,
-            newRate,
-            prevTotalSupply,
-            feeCollector.getConfig().feeApyReductionPercentage
+            oldRate, newRate, prevTotalSupply, feeCollector.getConfig().feeApyReductionPercentage
         );
 
         vm.expectEmit(true, true, true, true, address(feeCollector));
-        emit FeeCollector.FeeCollected(
-            expectedMint,
-            newRate,
-            oldRate,
-            prevTotalSupply
-        );
+        emit FeeCollector.FeeCollected(expectedMint, newRate, oldRate, prevTotalSupply);
 
         feeCollector.collectFee();
 
@@ -330,34 +294,15 @@ contract FeeCollectorTest is Test {
         console2.log("prevTotalSupply:", prevTotalSupply);
         console2.log("newTotalSupply:", newTotalSupply);
         console2.log("minted:", minted);
-        console2.log(
-            "collectorBalance delta:",
-            newCollectorBalance - prevCollectorBalance
-        );
+        console2.log("collectorBalance delta:", newCollectorBalance - prevCollectorBalance);
 
         assertGt(minted, 0, "minted amount should be > 0");
-        assertEq(
-            newTotalSupply - prevTotalSupply,
-            minted,
-            "totalSupply increase mismatch"
-        );
-        assertEq(
-            newCollectorBalance - prevCollectorBalance,
-            minted,
-            "collector balance mismatch"
-        );
+        assertEq(newTotalSupply - prevTotalSupply, minted, "totalSupply increase mismatch");
+        assertEq(newCollectorBalance - prevCollectorBalance, minted, "collector balance mismatch");
 
         FeeCollector.State memory st = feeCollector.getState();
-        assertEq(
-            st.lastExchangeRate,
-            newRate,
-            "state lastExchangeRate should be updated"
-        );
-        assertEq(
-            st.lastCollectionTimestamp,
-            uint64(block.timestamp),
-            "timestamp should be updated"
-        );
+        assertEq(st.lastExchangeRate, newRate, "state lastExchangeRate should be updated");
+        assertEq(st.lastCollectionTimestamp, uint64(block.timestamp), "timestamp should be updated");
     }
 
     function testCollectFeeWhenFeeToMintZeroKeepsState() public {
@@ -427,21 +372,13 @@ contract FeeCollectorTest is Test {
         FeeCollector.State memory st2 = feeCollector.getState();
         uint256 minted2 = core.lastMintedAmount();
 
-        assertGt(
-            minted2,
-            mintedBefore,
-            "second collect should mint additional fee"
-        );
+        assertGt(minted2, mintedBefore, "second collect should mint additional fee");
         assertGt(
             st2.lastCollectionTimestamp,
             st1.lastCollectionTimestamp,
             "lastCollectionTimestamp must increase on second collect"
         );
-        assertEq(
-            st2.lastExchangeRate,
-            newRate2,
-            "lastExchangeRate must be updated to latest rate"
-        );
+        assertEq(st2.lastExchangeRate, newRate2, "lastExchangeRate must be updated to latest rate");
     }
 
     // --------------------------------------
@@ -478,28 +415,15 @@ contract FeeCollectorTest is Test {
         console2.log("recipient before:", prevRecipient);
         console2.log("recipient after:", newRecipient);
 
-        assertEq(
-            prevCollector - newCollector,
-            300,
-            "collector balance decrease mismatch"
-        );
-        assertEq(
-            newRecipient - prevRecipient,
-            300,
-            "recipient balance increase mismatch"
-        );
+        assertEq(prevCollector - newCollector, 300, "collector balance decrease mismatch");
+        assertEq(newRecipient - prevRecipient, 300, "recipient balance increase mismatch");
     }
 
     function testClaimOnlyOwner() public {
         maxbtc.mint(address(feeCollector), 1000);
 
         vm.prank(other);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                OwnableUpgradeable.OwnableUnauthorizedAccount.selector,
-                other
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, other));
         feeCollector.claim(100, other);
     }
 
@@ -533,54 +457,25 @@ contract FeeCollectorTest is Test {
         newCore.setRate(2e18);
 
         vm.expectEmit(true, true, true, true, address(feeCollector));
-        emit FeeCollector.ConfigUpdated(
-            address(newCore),
-            address(core),
-            0.2e18,
-            10_000
-        );
+        emit FeeCollector.ConfigUpdated(address(newCore), address(core), 0.2e18, 10_000);
 
-        feeCollector.updateConfig(
-            address(newCore),
-            address(core),
-            0.2e18,
-            10_000
-        );
+        feeCollector.updateConfig(address(newCore), address(core), 0.2e18, 10_000);
 
         FeeCollector.Config memory cfg = feeCollector.getConfig();
 
         console2.log("updateConfig():");
         console2.log("new coreContract:", cfg.coreContract);
-        console2.log(
-            "new feeApyReductionPercentage:",
-            cfg.feeApyReductionPercentage
-        );
-        console2.log(
-            "new collectionPeriodSeconds:",
-            cfg.collectionPeriodSeconds
-        );
+        console2.log("new feeApyReductionPercentage:", cfg.feeApyReductionPercentage);
+        console2.log("new collectionPeriodSeconds:", cfg.collectionPeriodSeconds);
 
-        assertEq(
-            cfg.coreContract,
-            address(newCore),
-            "coreContract not updated"
-        );
-        assertEq(
-            cfg.feeApyReductionPercentage,
-            0.2e18,
-            "fee reduction not updated"
-        );
+        assertEq(cfg.coreContract, address(newCore), "coreContract not updated");
+        assertEq(cfg.feeApyReductionPercentage, 0.2e18, "fee reduction not updated");
         assertEq(cfg.collectionPeriodSeconds, 10_000, "period not updated");
     }
 
     function testUpdateConfigOnlyOwner() public {
         vm.prank(other);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                OwnableUpgradeable.OwnableUnauthorizedAccount.selector,
-                other
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, other));
         feeCollector.updateConfig(address(core), address(core), 0.2e18, 7200);
     }
 
@@ -592,27 +487,14 @@ contract FeeCollectorTest is Test {
         // We already used proxy + initialize in setUp.
         // Calling initialize again must revert with InvalidInitialization.
         vm.expectRevert(bytes("InvalidInitialization()"));
-        feeCollector.initialize(
-            owner,
-            address(core),
-            address(core),
-            0.1e18,
-            3600,
-            address(maxbtc)
-        );
+        feeCollector.initialize(owner, address(core), address(core), 0.1e18, 3600, address(maxbtc));
     }
 
     function testUUPSUpgradeOnlyOwner() public {
         FeeCollector impl = new FeeCollector();
 
         bytes memory data = abi.encodeWithSelector(
-            FeeCollector.initialize.selector,
-            owner,
-            address(core),
-            address(core),
-            0.1e18,
-            3600,
-            address(maxbtc)
+            FeeCollector.initialize.selector, owner, address(core), address(core), 0.1e18, 3600, address(maxbtc)
         );
 
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), data);
@@ -621,12 +503,7 @@ contract FeeCollectorTest is Test {
         FeeCollectorV2 implV2 = new FeeCollectorV2();
 
         vm.prank(other);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                OwnableUpgradeable.OwnableUnauthorizedAccount.selector,
-                other
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, other));
         proxied.upgradeToAndCall(address(implV2), "");
     }
 
@@ -634,14 +511,7 @@ contract FeeCollectorTest is Test {
         FeeCollector impl = new FeeCollector();
 
         bytes memory data = abi.encodeWithSelector(
-            FeeCollector.initialize.selector,
-            owner,
-            address(core),
-            address(core),
-            0.1e18,
-            3600,
-            address(maxbtc),
-            8
+            FeeCollector.initialize.selector, owner, address(core), address(core), 0.1e18, 3600, address(maxbtc), 8
         );
 
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), data);
@@ -660,32 +530,14 @@ contract FeeCollectorTest is Test {
         FeeCollector.Config memory cfgAfter = proxiedV2.getConfig();
         FeeCollector.State memory stAfter = proxiedV2.getState();
 
+        assertEq(cfgAfter.coreContract, cfgBefore.coreContract, "coreContract must be preserved");
         assertEq(
-            cfgAfter.coreContract,
-            cfgBefore.coreContract,
-            "coreContract must be preserved"
+            cfgAfter.feeApyReductionPercentage, cfgBefore.feeApyReductionPercentage, "fee reduction must be preserved"
         );
-        assertEq(
-            cfgAfter.feeApyReductionPercentage,
-            cfgBefore.feeApyReductionPercentage,
-            "fee reduction must be preserved"
-        );
-        assertEq(
-            cfgAfter.collectionPeriodSeconds,
-            cfgBefore.collectionPeriodSeconds,
-            "period must be preserved"
-        );
-        assertEq(
-            address(cfgAfter.feeToken),
-            address(cfgBefore.feeToken),
-            "fee token must be preserved"
-        );
+        assertEq(cfgAfter.collectionPeriodSeconds, cfgBefore.collectionPeriodSeconds, "period must be preserved");
+        assertEq(address(cfgAfter.feeToken), address(cfgBefore.feeToken), "fee token must be preserved");
 
-        assertEq(
-            stAfter.lastExchangeRate,
-            stBefore.lastExchangeRate,
-            "lastExchangeRate must be preserved"
-        );
+        assertEq(stAfter.lastExchangeRate, stBefore.lastExchangeRate, "lastExchangeRate must be preserved");
         assertEq(
             stAfter.lastCollectionTimestamp,
             stBefore.lastCollectionTimestamp,

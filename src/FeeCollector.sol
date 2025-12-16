@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 interface IReceiver {
     /// Returns current exchange rate and timestamp of publication.
@@ -17,11 +17,7 @@ interface ICoreContract {
     function mintFee(uint256 amount) external;
 }
 
-contract FeeCollector is
-    Initializable,
-    UUPSUpgradeable,
-    Ownable2StepUpgradeable
-{
+contract FeeCollector is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     using SafeERC20 for IERC20;
 
     uint256 private constant ONE = 1e18;
@@ -57,10 +53,7 @@ contract FeeCollector is
 
     /// @notice Emitted when fees are collected and minted to the core contract.
     event FeeCollected(
-        uint256 mintedAmount,
-        uint256 currentExchangeRate,
-        uint256 previousExchangeRate,
-        uint256 totalSupplyBefore
+        uint256 mintedAmount, uint256 currentExchangeRate, uint256 previousExchangeRate, uint256 totalSupplyBefore
     );
 
     /// @notice Emitted when the owner claims accumulated fees.
@@ -68,19 +61,14 @@ contract FeeCollector is
 
     /// @notice Emitted when configuration is updated.
     event ConfigUpdated(
-        address coreContract,
-        address erReceiver,
-        uint256 feeApyReductionPercentage,
-        uint64 collectionPeriodSeconds
+        address coreContract, address erReceiver, uint256 feeApyReductionPercentage, uint64 collectionPeriodSeconds
     );
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.fee_collector.config")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant CONFIG_STORAGE_SLOT =
-        0x55a5612efb3791db0b287c4f2521a452b64dc8c1ea03edaa7b8f0870c0bd6300;
+    bytes32 private constant CONFIG_STORAGE_SLOT = 0x55a5612efb3791db0b287c4f2521a452b64dc8c1ea03edaa7b8f0870c0bd6300;
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.fee_collector.state")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant STATE_STORAGE_SLOT =
-        0x966789e57aed537e5e5c5502b1c3700bbababa9893769d9edb5dcfab993bfe00;
+    bytes32 private constant STATE_STORAGE_SLOT = 0x966789e57aed537e5e5c5502b1c3700bbababa9893769d9edb5dcfab993bfe00;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -94,13 +82,14 @@ contract FeeCollector is
         uint256 feeApyReductionPercentage_,
         uint64 collectionPeriodSeconds_,
         address feeToken_
-    ) external initializer {
+    )
+        external
+        initializer
+    {
         if (coreContract_ == address(0)) revert InvalidCoreContractAddress();
         if (erReceiver_ == address(0)) revert InvalidErReceiverAddress();
         if (feeToken_ == address(0)) revert InvalidFeeTokenAddress();
-        if (
-            feeApyReductionPercentage_ == 0 || feeApyReductionPercentage_ >= ONE
-        ) {
+        if (feeApyReductionPercentage_ == 0 || feeApyReductionPercentage_ >= ONE) {
             revert InvalidFeeReductionPercentage();
         }
 
@@ -115,7 +104,7 @@ contract FeeCollector is
         config.collectionPeriodSeconds = collectionPeriodSeconds_;
         config.feeToken = IERC20(feeToken_);
 
-        (uint256 initialRate, ) = IReceiver(erReceiver_).getLatest();
+        (uint256 initialRate,) = IReceiver(erReceiver_).getLatest();
 
         State storage st = _getState();
         st.lastCollectionTimestamp = block.timestamp;
@@ -126,14 +115,13 @@ contract FeeCollector is
         Config storage config = _getConfig();
         State storage st = _getState();
 
-        uint256 nextAllowed = st.lastCollectionTimestamp +
-            config.collectionPeriodSeconds;
+        uint256 nextAllowed = st.lastCollectionTimestamp + config.collectionPeriodSeconds;
 
         if (block.timestamp < nextAllowed) {
             revert CollectionPeriodNotElapsed();
         }
 
-        (uint256 currentRate, ) = IReceiver(config.erReceiver).getLatest();
+        (uint256 currentRate,) = IReceiver(config.erReceiver).getLatest();
 
         uint256 totalSupply = config.feeToken.totalSupply();
 
@@ -142,12 +130,7 @@ contract FeeCollector is
         }
 
         uint256 previousRate = st.lastExchangeRate;
-        uint256 toMint = calculateFeeToMint(
-            previousRate,
-            currentRate,
-            totalSupply,
-            config.feeApyReductionPercentage
-        );
+        uint256 toMint = calculateFeeToMint(previousRate, currentRate, totalSupply, config.feeApyReductionPercentage);
 
         if (toMint == 0) {
             return;
@@ -176,13 +159,13 @@ contract FeeCollector is
         address newErReceiver,
         uint256 newFeeApyReductionPercentage,
         uint64 newCollectionPeriodSeconds
-    ) external onlyOwner {
+    )
+        external
+        onlyOwner
+    {
         if (newCoreContract == address(0)) revert InvalidCoreContractAddress();
         if (newErReceiver == address(0)) revert InvalidErReceiverAddress();
-        if (
-            newFeeApyReductionPercentage == 0 ||
-            newFeeApyReductionPercentage >= ONE
-        ) {
+        if (newFeeApyReductionPercentage == 0 || newFeeApyReductionPercentage >= ONE) {
             revert InvalidFeeReductionPercentage();
         }
 
@@ -192,12 +175,7 @@ contract FeeCollector is
         config.feeApyReductionPercentage = newFeeApyReductionPercentage;
         config.collectionPeriodSeconds = newCollectionPeriodSeconds;
 
-        emit ConfigUpdated(
-            newCoreContract,
-            newErReceiver,
-            newFeeApyReductionPercentage,
-            newCollectionPeriodSeconds
-        );
+        emit ConfigUpdated(newCoreContract, newErReceiver, newFeeApyReductionPercentage, newCollectionPeriodSeconds);
     }
 
     function getConfig() external pure returns (Config memory) {
@@ -229,7 +207,11 @@ contract FeeCollector is
         uint256 rateCurrent,
         uint256 totalSupplyCurrent,
         uint256 feeReductionPercentage
-    ) public pure returns (uint256) {
+    )
+        public
+        pure
+        returns (uint256)
+    {
         if (rateCurrent <= rateOld) return 0;
 
         uint256 gain = rateCurrent - rateOld;
@@ -249,7 +231,5 @@ contract FeeCollector is
         return feeAtomic;
     }
 
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 }

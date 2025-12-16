@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
-import {Allowlist, IZkMe} from "../src/Allowlist.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { Test } from "forge-std/Test.sol";
+import { Allowlist, IZkMe } from "../src/Allowlist.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract MockZkMe is IZkMe {
     mapping(address => bool) public approved;
@@ -18,10 +18,7 @@ contract MockZkMe is IZkMe {
         approved[_approved] = true;
     }
 
-    function hasApproved(
-        address _cooperator,
-        address user
-    ) external view returns (bool) {
+    function hasApproved(address _cooperator, address user) external view returns (bool) {
         return _cooperator == cooperator && approved[user];
     }
 }
@@ -35,10 +32,7 @@ contract AllowlistTest is Test {
 
     function setUp() external {
         Allowlist impl = new Allowlist();
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(impl),
-            abi.encodeCall(Allowlist.initialize, (OWNER))
-        );
+        ERC1967Proxy proxy = new ERC1967Proxy(address(impl), abi.encodeCall(Allowlist.initialize, (OWNER)));
         allowlist = Allowlist(address(proxy));
         zkme = new MockZkMe();
         zkme.setCooperator(OTHER);
@@ -75,30 +69,15 @@ contract AllowlistTest is Test {
     function testOnlyOwnerGuards() external {
         address attacker = USER;
         vm.prank(attacker);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                OwnableUpgradeable.OwnableUnauthorizedAccount.selector,
-                attacker
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, attacker));
         allowlist.allow(_arr(USER));
 
         vm.prank(attacker);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                OwnableUpgradeable.OwnableUnauthorizedAccount.selector,
-                attacker
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, attacker));
         allowlist.deny(_arr(USER));
 
         vm.prank(attacker);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                OwnableUpgradeable.OwnableUnauthorizedAccount.selector,
-                attacker
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, attacker));
         allowlist.setZkMeSettings(address(zkme), OTHER);
     }
 
@@ -116,20 +95,12 @@ contract AllowlistTest is Test {
         address newOwner = address(0x1234);
         vm.prank(OWNER);
         allowlist.transferOwnership(newOwner);
-        assertEq(
-            allowlist.pendingOwner(),
-            newOwner,
-            "pending owner was not set properly"
-        );
+        assertEq(allowlist.pendingOwner(), newOwner, "pending owner was not set properly");
 
         vm.prank(newOwner);
         allowlist.acceptOwnership();
         assertEq(allowlist.owner(), newOwner, "ownership was not transferred");
-        assertEq(
-            allowlist.pendingOwner(),
-            address(0),
-            "pending owner was not cleared"
-        );
+        assertEq(allowlist.pendingOwner(), address(0), "pending owner was not cleared");
     }
 
     function _arr(address a) private pure returns (address[] memory arr) {
@@ -137,10 +108,7 @@ contract AllowlistTest is Test {
         arr[0] = a;
     }
 
-    function _arr(
-        address a,
-        address b
-    ) private pure returns (address[] memory arr) {
+    function _arr(address a, address b) private pure returns (address[] memory arr) {
         arr = new address[](2);
         arr[0] = a;
         arr[1] = b;
