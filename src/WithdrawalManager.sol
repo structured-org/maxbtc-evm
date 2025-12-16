@@ -27,12 +27,7 @@ interface ICoreContract {
     function finalizedBatch(uint256) external view returns (Batch memory);
 }
 
-contract WithdrawalManager is
-    Initializable,
-    UUPSUpgradeable,
-    ERC1155HolderUpgradeable,
-    Ownable2StepUpgradeable
-{
+contract WithdrawalManager is Initializable, UUPSUpgradeable, ERC1155HolderUpgradeable, Ownable2StepUpgradeable {
     struct WithdrawalManagerConfig {
         address coreContract;
         address wbtcContract;
@@ -56,14 +51,13 @@ contract WithdrawalManager is
     error AddressNotAllowed(address account);
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.config")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant CONFIG_STORAGE_SLOT =
-        0x586b8ebd4b221736eefae7cfa16e8ed3b4ce4c3890765b521ad826b0ffedfd00;
-    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.paid_amount")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant CONFIG_STORAGE_SLOT = 0x586b8ebd4b221736eefae7cfa16e8ed3b4ce4c3890765b521ad826b0ffedfd00;
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.paid_amount")) - 1)) &
+    /// ~bytes32(uint256(0xff))
     bytes32 private constant PAID_AMOUNT_STORAGE_SLOT =
         0x8ee28e9cbcd498a9bd31513552accc39c2806ab50852fb31c37d622919337900;
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.pause")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant PAUSE_STORAGE_SLOT =
-        0x67e38bbcda9028a2e19a608178c5c2c77532c8eeaf31e6b94ce02f730b76ac00;
+    bytes32 private constant PAUSE_STORAGE_SLOT = 0x67e38bbcda9028a2e19a608178c5c2c77532c8eeaf31e6b94ce02f730b76ac00;
 
     event Paused();
     event Unpaused();
@@ -83,7 +77,7 @@ contract WithdrawalManager is
     ) public initializer {
         if (_coreContract == address(0)) revert InvalidCoreContractAddress();
         if (_wbtcContract == address(0)) revert InvalidwBTCContractAddress();
-        if (_withdrawalTokenContract == address(0))
+        if (_withdrawalTokenContract == address(0)) {
             revert InvalidWithdrawalTokenContractAddress();
         if (_allowlist == address(0)) revert InvalidAllowlistContractAddress();
         __Ownable_init(owner_);
@@ -98,12 +92,17 @@ contract WithdrawalManager is
     }
 
     function onERC1155Received(
-        address /*operator*/,
+        address,
+        /*operator*/
         address from,
         uint256 batchId,
         uint256 value,
         bytes memory /*data*/
-    ) public override returns (bytes4) {
+    )
+        public
+        override
+        returns (bytes4)
+    {
         require(!paused(), ContractPaused());
 
         WithdrawalManagerConfig storage config = _getWithdrawalManagerConfig();
@@ -117,12 +116,9 @@ contract WithdrawalManager is
             AddressNotAllowed(from)
         );
 
-        Batch memory finalizedBatch = ICoreContract(config.coreContract)
-            .finalizedBatch(batchId);
+        Batch memory finalizedBatch = ICoreContract(config.coreContract).finalizedBatch(batchId);
 
-        WithdrawalToken withdrawalToken = WithdrawalToken(
-            config.withdrawalTokenContract
-        );
+        WithdrawalToken withdrawalToken = WithdrawalToken(config.withdrawalTokenContract);
 
         uint256 redemptionTokenSupply = withdrawalToken.totalSupply(batchId);
         if (redemptionTokenSupply == 0) {
@@ -149,7 +145,12 @@ contract WithdrawalManager is
         uint256[] memory,
         uint256[] memory,
         bytes memory
-    ) public pure override returns (bytes4) {
+    )
+        public
+        pure
+        override
+        returns (bytes4)
+    {
         revert BatchSupportNotEnabled();
     }
 
@@ -161,11 +162,7 @@ contract WithdrawalManager is
         emit ConfigSettingUpdated("allowlistContract", newAllowlistContract);
     }
 
-    function _getWithdrawalManagerConfig()
-        private
-        pure
-        returns (WithdrawalManagerConfig storage $)
-    {
+    function _getWithdrawalManagerConfig() private pure returns (WithdrawalManagerConfig storage $) {
         assembly {
             $.slot := CONFIG_STORAGE_SLOT
         }
@@ -203,7 +200,5 @@ contract WithdrawalManager is
         return config;
     }
 
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 }

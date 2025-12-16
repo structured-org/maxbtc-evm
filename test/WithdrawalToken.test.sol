@@ -35,6 +35,10 @@ contract WithdrawalTokenTest is Test {
             address(implementation),
             initData
         );
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(implementation),
+            initData
+        );
         token = WithdrawalToken(address(proxy));
         // Ownership is set to `owner` in initialize, so we need to prank as owner for owner-only functions
     }
