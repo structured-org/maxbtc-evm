@@ -169,8 +169,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         feeCollector = FeeCollector(address(feeCollectorProxy));
         feeCollector.initialize(OWNER, address(core), address(provider), FEE_REDUCTION, 1, address(maxbtc));
 
-        // address(this) plays role of ics20 for maxBTC ERC20 contract, hence
-        // it will need some rate limits allowance to pass these tests
+        // Operator doubles as ICS20 in tests so tick-triggered burns are authorized.
+        maxbtc.updateIcs20(OPERATOR);
         maxbtc.setEurekaRateLimits(1e18, 1e18);
 
         // Manager needs to know core for finalized batch lookups
@@ -251,6 +251,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         provider.publishAum(0, wbtc.decimals());
 
         // Mint some maxBTC to user
+        vm.prank(address(core));
         maxbtc.mint(USER, 2e8);
         // Provide partial deposits to core
         wbtc.mint(address(core), 5e7);
@@ -259,6 +260,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         maxbtc.approve(address(core), type(uint256).max);
         core.withdraw(2e8);
         vm.stopPrank();
+        vm.prank(USER);
+        assertTrue(maxbtc.transfer(OPERATOR, 2e8));
 
         // Idle -> WithdrawJlp
         vm.prank(OPERATOR);
