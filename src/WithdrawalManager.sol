@@ -1,13 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import {ERC1155HolderUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
+import {
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    ERC1155HolderUpgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
 import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {Batch} from "./types/CoreTypes.sol";
 import {WithdrawalToken} from "./WithdrawalToken.sol";
@@ -133,16 +143,13 @@ contract WithdrawalManager is
     }
 
     function updateConfig(
-        address newCoreContract,
         address newWbtcContract,
         address newWithdrawalTokenContract
     ) external onlyOwner {
         WithdrawalManagerConfig storage config = _getWithdrawalManagerConfig();
-        if (newCoreContract == address(0)) revert InvalidCoreContractAddress();
         if (newWbtcContract == address(0)) revert InvalidwBTCContractAddress();
         if (newWithdrawalTokenContract == address(0))
             revert InvalidWithdrawalTokenContractAddress();
-        config.coreContract = newCoreContract;
         config.wbtcContract = newWbtcContract;
         config.withdrawalTokenContract = newWithdrawalTokenContract;
         emit ConfigUpdated(config);

@@ -2,7 +2,9 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {WithdrawalManager, ICoreContract} from "../src/WithdrawalManager.sol";
 import {WithdrawalToken} from "../src/WithdrawalToken.sol";
@@ -284,16 +286,14 @@ contract WithdrawalManagerTest is Test {
 
     function testUpdateConfigByOwner() public {
         // Owner updates config successfully
-        address newCore = address(0x1111);
         address newWbtc = address(0x2222);
         address newToken = address(0x3333);
 
         vm.prank(owner);
-        manager.updateConfig(newCore, newWbtc, newToken);
+        manager.updateConfig(newWbtc, newToken);
 
         WithdrawalManager.WithdrawalManagerConfig memory config = manager
             .getConfig();
-        assertEq(config.coreContract, newCore);
         assertEq(config.wbtcContract, newWbtc);
         assertEq(config.withdrawalTokenContract, newToken);
     }
@@ -306,7 +306,7 @@ contract WithdrawalManagerTest is Test {
                 address(this)
             )
         );
-        manager.updateConfig(address(1), address(2), address(3));
+        manager.updateConfig(address(1), address(2));
     }
 
     function testUpdateConfigRevertsForZeroAddresses() public {
@@ -315,18 +315,10 @@ contract WithdrawalManagerTest is Test {
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                WithdrawalManager.InvalidCoreContractAddress.selector
-            )
-        );
-        manager.updateConfig(address(0), address(2), address(3));
-
-        vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
                 WithdrawalManager.InvalidwBTCContractAddress.selector
             )
         );
-        manager.updateConfig(address(1), address(0), address(3));
+        manager.updateConfig(address(0), address(1));
 
         vm.prank(owner);
         vm.expectRevert(
@@ -334,7 +326,7 @@ contract WithdrawalManagerTest is Test {
                 WithdrawalManager.InvalidWithdrawalTokenContractAddress.selector
             )
         );
-        manager.updateConfig(address(1), address(2), address(0));
+        manager.updateConfig(address(1), address(0));
     }
 
     function testPauseAndUnpauseEmitsEventsAndChangesState() public {
