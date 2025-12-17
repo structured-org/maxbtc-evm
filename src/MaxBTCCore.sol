@@ -1,12 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    IERC20Metadata
+} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {MaxBTCERC20} from "./MaxBTCERC20.sol";
 import {WithdrawalToken} from "./WithdrawalToken.sol";
 import {WaitosaurHolder} from "./WaitosaurHolder.sol";
@@ -121,6 +131,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     error FeeTooHigh();
     error SlippageLimitExceeded(uint256 requested, uint256 actual);
     error WaitosaurLocked();
+    error AumMustBePositive();
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.core.config")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant CONFIG_STORAGE_SLOT =
@@ -501,6 +512,13 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         if (_msgSender() != config.feeCollector) {
             revert InvalidFeeCollectorAddress();
         }
+
+        (int256 aumRaw, ) = IExchangeRateProvider(config.exchangeRateProvider)
+            .getAum();
+        if (aumRaw <= 0) {
+            revert AumMustBePositive();
+        }
+
         MaxBTCERC20(config.maxBtcToken).mint(_msgSender(), amount);
         emit FeeMinted(_msgSender(), amount);
     }
