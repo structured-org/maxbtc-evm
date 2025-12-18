@@ -205,7 +205,8 @@ contract MaxBTCCoreIntegrationTest is Test {
             address(provider),
             FEE_REDUCTION,
             3600,
-            address(maxbtc)
+            address(maxbtc),
+            3600
         );
 
         // address(this) plays role of ics20 for maxBTC ERC20 contract, hence
