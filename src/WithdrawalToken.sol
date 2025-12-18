@@ -1,11 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {ERC1155Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
-import {ERC1155SupplyUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155SupplyUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    ERC1155Upgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
+import {
+    ERC1155SupplyUpgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155SupplyUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
@@ -16,53 +26,105 @@ contract WithdrawalToken is
     Ownable2StepUpgradeable,
     UUPSUpgradeable
 {
-    event CoreUpdated(address indexed updater, address newCore);
+    event ConfigSettingUpdated(string field, address newValue);
 
-    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_token.name")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant NAME_STORAGE_SLOT =
-        0x190eb2605c587c583d04f046ca87c4680dfd9f551aa34f413199ca360f03b400;
-    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_token.prefix")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant PREFIX_STORAGE_SLOT =
-        0x0d84cbc9810e57874f12de4633745d6fecec5db0f760c60f67b201951f5edc00;
-    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_token.core")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant CORE_STORAGE_SLOT =
-        0x91df784e22c2f214d982f522afd62bdd70c7787971d699d2545768e9d3a97200;
+    struct WithdrawalTokenConfig {
+        address coreContract;
+        address withdrawalManagerContract;
+        string name;
+        string prefix;
+    }
+
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_token.config")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant CONFIG_STORAGE_SLOT =
+        0x2ffbc5c5fd0856976bf4c1b8549b1dcedc1c604f212a684521a94c9f1a146900;
 
     using Strings for uint256;
 
     error OnlyCoreCanMint();
+    error OnlyWithdrawalManagerCanBurn();
+    error InvalidCoreContractAddress();
+    error InvalidWithdrawalManagerContractAddress();
+    error InvalidName();
+    error InvalidPrefix();
 
     modifier onlyCore() {
         _onlyCore();
         _;
     }
 
-    function _onlyCore() internal view {
-        require(_msgSender() == coreAddress(), OnlyCoreCanMint());
+    modifier onlyWithdrawalManager() {
+        _onlyWithdrawalManager();
+        _;
     }
 
+    function _onlyCore() internal view {
+        require(
+            _msgSender() == _getWithdrawalTokenConfig().coreContract,
+            OnlyCoreCanMint()
+        );
+    }
+
+    function _onlyWithdrawalManager() internal view {
+        require(
+            _msgSender() ==
+                _getWithdrawalTokenConfig().withdrawalManagerContract,
+            OnlyWithdrawalManagerCanBurn()
+        );
+    }
+
+    function _getWithdrawalTokenConfig()
+        private
+        pure
+        returns (WithdrawalTokenConfig storage $)
+    {
+        assembly {
+            $.slot := CONFIG_STORAGE_SLOT
+        }
+    }
+
+    event ConfigSettingUpdated(string field, string newValue);
+
     function name() public view returns (string memory) {
-        return StorageSlot.getStringSlot(NAME_STORAGE_SLOT).value;
+        return _getWithdrawalTokenConfig().name;
     }
 
     function _setName(string memory newName) internal {
-        StorageSlot.getStringSlot(NAME_STORAGE_SLOT).value = newName;
+        _getWithdrawalTokenConfig().name = newName;
     }
 
     function prefix() public view returns (string memory) {
-        return StorageSlot.getStringSlot(PREFIX_STORAGE_SLOT).value;
+        return _getWithdrawalTokenConfig().prefix;
     }
 
     function _setPrefix(string memory newPrefix) internal {
-        StorageSlot.getStringSlot(PREFIX_STORAGE_SLOT).value = newPrefix;
+        _getWithdrawalTokenConfig().prefix = newPrefix;
     }
 
-    function coreAddress() public view returns (address) {
-        return StorageSlot.getAddressSlot(CORE_STORAGE_SLOT).value;
-    }
+    function updateConfig(
+        address newCoreContract,
+        string memory newName,
+        string memory newPrefix,
+        address newWithdrawalManagerContract
+    ) external onlyOwner {
+        WithdrawalTokenConfig storage config = _getWithdrawalTokenConfig();
+        if (newCoreContract == address(0)) revert InvalidCoreContractAddress();
+        if (newWithdrawalManagerContract == address(0))
+            revert InvalidWithdrawalManagerContractAddress();
+        if (bytes(newName).length == 0) revert InvalidName();
+        if (bytes(newPrefix).length == 0) revert InvalidPrefix();
 
-    function _setCoreAddress(address newCoreAddress) internal {
-        StorageSlot.getAddressSlot(CORE_STORAGE_SLOT).value = newCoreAddress;
+        config.coreContract = newCoreContract;
+        config.name = newName;
+        config.prefix = newPrefix;
+        config.withdrawalManagerContract = newWithdrawalManagerContract;
+        emit ConfigSettingUpdated("coreContract", newCoreContract);
+        emit ConfigSettingUpdated("name", newName);
+        emit ConfigSettingUpdated("prefix", newPrefix);
+        emit ConfigSettingUpdated(
+            "withdrawalManagerContract",
+            newWithdrawalManagerContract
+        );
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -73,6 +135,7 @@ contract WithdrawalToken is
     function initialize(
         address owner_,
         address core_,
+        address withdrawalManagerContract_,
         string memory baseUri_,
         string memory name_,
         string memory prefix_
@@ -81,9 +144,17 @@ contract WithdrawalToken is
         __Ownable_init(owner_);
         __Ownable2Step_init();
         __UUPSUpgradeable_init();
-        _setName(name_);
-        _setPrefix(prefix_);
-        _setCoreAddress(core_);
+        WithdrawalTokenConfig storage config = _getWithdrawalTokenConfig();
+
+        if (core_ == address(0)) revert InvalidCoreContractAddress();
+        if (withdrawalManagerContract_ == address(0))
+            revert InvalidWithdrawalManagerContractAddress();
+        if (bytes(name_).length == 0) revert InvalidName();
+        if (bytes(prefix_).length == 0) revert InvalidPrefix();
+        config.coreContract = core_;
+        config.name = name_;
+        config.prefix = prefix_;
+        config.withdrawalManagerContract = withdrawalManagerContract_;
     }
 
     function symbol(uint256 id) public view returns (string memory) {
@@ -99,18 +170,17 @@ contract WithdrawalToken is
         _mint(to, id, amount, data);
     }
 
-    function burn(address from, uint256 id, uint256 amount) public {
+    function burn(
+        address from,
+        uint256 id,
+        uint256 amount
+    ) public onlyWithdrawalManager {
         address operator = _msgSender();
         require(
             operator == from || isApprovedForAll(from, operator),
             ERC1155MissingApprovalForAll(operator, from)
         );
         _burn(from, id, amount);
-    }
-
-    function updateCoreAddress(address newCore) external onlyOwner {
-        _setCoreAddress(newCore);
-        emit CoreUpdated(msg.sender, newCore);
     }
 
     /// @inheritdoc UUPSUpgradeable

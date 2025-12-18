@@ -3,8 +3,12 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MaxBTCCore} from "../src/MaxBTCCore.sol";
 import {MaxBTCERC20} from "../src/MaxBTCERC20.sol";
@@ -177,16 +181,12 @@ contract MaxBTCCoreIntegrationTest is Test {
         waitosaurHolder.updateConfig(address(manager));
 
         // Now initialize dependent contracts with the finalized core address.
-        maxbtc.initialize(
-            address(this),
-            address(this),
-            "maxBTC",
-            "maxBTC"
-        );
+        maxbtc.initialize(address(this), address(this), "maxBTC", "maxBTC");
         maxbtc.initializeV2(address(core));
         withdrawalToken.initialize(
             address(this),
             address(core),
+            address(managerProxy),
             "ipfs://base/",
             "Redemption",
             "rMAX-"

@@ -10,7 +10,9 @@ import {WaitosaurHolder} from "../src/WaitosaurHolder.sol";
 import {Allowlist} from "../src/Allowlist.sol";
 import {Receiver} from "../src/Receiver.sol";
 import {Batch} from "../src/types/CoreTypes.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MockERC20 is ERC20 {
     uint8 private immutable _DECIMALS;
@@ -151,6 +153,7 @@ contract MaxBTCCoreTest is Test {
         withdrawalToken.initialize(
             address(this),
             address(core),
+            WITHDRAWAL_MANAGER,
             "ipfs://test/",
             "Redemption",
             "rMAX-"

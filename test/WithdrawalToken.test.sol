@@ -4,6 +4,9 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {WithdrawalToken} from "../src/WithdrawalToken.sol";
 import {
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
     ERC1967Proxy
 } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
@@ -11,6 +14,7 @@ contract WithdrawalTokenTest is Test {
     WithdrawalToken internal token;
     address internal owner = address(0xABCD);
     address internal core = address(0xBEEF);
+    address internal withdrawalManager = address(0xC0DE);
     error OwnableUnauthorizedAccount(address account);
     address internal user = address(0x1234);
 
@@ -18,7 +22,14 @@ contract WithdrawalTokenTest is Test {
         WithdrawalToken implementation = new WithdrawalToken();
         bytes memory initData = abi.encodeCall(
             WithdrawalToken.initialize,
-            (owner, core, "https://api.example.com/", "WithdrawalToken", "WRT-")
+            (
+                owner,
+                core,
+                withdrawalManager,
+                "https://api.example.com/",
+                "WithdrawalToken",
+                "WRT-"
+            )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(implementation),
@@ -48,8 +59,10 @@ contract WithdrawalTokenTest is Test {
         vm.prank(core);
         token.mint(user, 1, 100, "");
         assertEq(token.balanceOf(user, 1), 100);
-        // Owner can burn their own tokens
+        // withdrawalManager must be the caller and must be approved by user
         vm.prank(user);
+        token.setApprovalForAll(withdrawalManager, true);
+        vm.prank(withdrawalManager);
         token.burn(user, 1, 40);
         assertEq(token.balanceOf(user, 1), 60);
     }
@@ -59,22 +72,22 @@ contract WithdrawalTokenTest is Test {
         token.mint(user, 1, 10, "");
         address attacker = address(0x9999);
         vm.prank(attacker);
-        bytes4 selector = bytes4(
-            keccak256("ERC1155MissingApprovalForAll(address,address)")
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WithdrawalToken.OnlyWithdrawalManagerCanBurn.selector
+            )
         );
-        vm.expectRevert(abi.encodeWithSelector(selector, attacker, user));
         token.burn(user, 1, 1);
     }
 
     function testBurnByApprovedOperator() public {
         vm.prank(core);
         token.mint(user, 1, 50, "");
-        address operator = address(0x9999);
-        // user approves operator
+        // user approves the configured withdrawalManager
         vm.prank(user);
-        token.setApprovalForAll(operator, true);
-        // operator burns on behalf of user
-        vm.prank(operator);
+        token.setApprovalForAll(withdrawalManager, true);
+        // withdrawalManager burns on behalf of user
+        vm.prank(withdrawalManager);
         token.burn(user, 1, 25);
         assertEq(token.balanceOf(user, 1), 25);
     }
@@ -82,18 +95,32 @@ contract WithdrawalTokenTest is Test {
     function testUpdateCoreAddressByOwner() public {
         address newCore = address(0xDEAD);
         vm.prank(owner);
-        token.updateCoreAddress(newCore);
-        assertEq(token.coreAddress(), newCore);
+        token.updateConfig(
+            newCore,
+            "WithdrawalToken",
+            "WRT-",
+            withdrawalManager
+        );
+        // new core should be able to mint
+        vm.prank(newCore);
+        token.mint(user, 1, 1, "");
+        assertEq(token.balanceOf(user, 1), 1);
     }
 
     function testUpdateCoreAddressNotOwnerReverts() public {
         address newCore = address(0xDEAD);
+        vm.prank(address(this));
         vm.expectRevert(
             abi.encodeWithSelector(
-                OwnableUnauthorizedAccount.selector,
+                OwnableUpgradeable.OwnableUnauthorizedAccount.selector,
                 address(this)
             )
         );
-        token.updateCoreAddress(newCore);
+        token.updateConfig(
+            newCore,
+            "WithdrawalToken",
+            "WRT-",
+            withdrawalManager
+        );
     }
 }
