@@ -350,13 +350,30 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         return batch;
     }
 
-    function finalizedBatches() external view returns (Batch[] memory) {
+    /// @notice Returns finalized batches in range [start; start+limit)
+    /// @param start Index of first batch to retrieve (returns empty array if out of range)
+    /// @param limit Maximum number of batches to retrieve (defaults to 10 if 0 provided, cannot exceed 100)
+    function finalizedBatches(uint256 start, uint256 limit) external view returns (Batch[] memory) {
         FinalizedBatchesStorage
             storage finalized = _getFinalizedBatchesStorage();
         uint256 length = finalized.finalizedBatchIds.length;
-        Batch[] memory batches = new Batch[](length);
-        for (uint256 i = 0; i < length; i++) {
-            uint256 batchId = finalized.finalizedBatchIds[i];
+
+        if (start >= length) {
+            return new Batch[](0);
+        }
+        if (limit == 0) {
+            limit = 10;
+        }
+        if (limit > 100) {
+            limit = 100;
+        }
+        if (start + limit >= length) {
+            limit = length - start;
+        }
+
+        Batch[] memory batches = new Batch[](limit);
+        for (uint256 i = 0; i < limit; i++) {
+            uint256 batchId = finalized.finalizedBatchIds[start + i];
             batches[i] = finalized.batches[batchId];
         }
         return batches;
