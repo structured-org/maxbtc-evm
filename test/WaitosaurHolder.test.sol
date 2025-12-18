@@ -46,8 +46,9 @@ contract MockERC20 {
         uint256 amount
     ) external returns (bool) {
         if (_balanceOf[from] < amount) revert InsufficientBalance();
-        if (allowance[from][msg.sender] < amount)
+        if (allowance[from][msg.sender] < amount) {
             revert InsufficientAllowance();
+        }
         _balanceOf[from] -= amount;
         _balanceOf[to] += amount;
         allowance[from][msg.sender] -= amount;

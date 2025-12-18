@@ -137,7 +137,7 @@ contract WaitosaurObserverTest is Test {
     // -------------------------------------------------------------
 
     function testLockByLocker() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -182,7 +182,7 @@ contract WaitosaurObserverTest is Test {
     // -------------------------------------------------------------
 
     function testUnlockSuccess() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -197,7 +197,7 @@ contract WaitosaurObserverTest is Test {
     }
 
     function testUnlockByOwnerAllowed() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -211,7 +211,7 @@ contract WaitosaurObserverTest is Test {
     }
 
     function testUnlockInsufficientBalanceReverts() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -230,7 +230,7 @@ contract WaitosaurObserverTest is Test {
     }
 
     function testUnlockUnauthorizedReverts() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);

@@ -92,12 +92,25 @@ contract WaitosaurHolder is WaitosaurBase {
     // Overrides
     // ---------------------------------------------------------------------
 
+    function _getInitialOracleBalance()
+        internal
+        view
+        override
+        returns (uint256)
+    {
+        WaitosaurHolderConfig storage config = _getWaitosaurConfig();
+        IERC20 tokenERC20 = IERC20(config.token);
+        return tokenERC20.balanceOf(address(this));
+    }
+
     function _unlock() internal override(WaitosaurBase) {
         WaitosaurHolderConfig storage config = _getWaitosaurConfig();
         WaitosaurState storage state = _getState();
         IERC20 tokenERC20 = IERC20(config.token);
 
         uint256 balance = tokenERC20.balanceOf(address(this));
+        // For Holder, we just need to ensure we have enough balance
+        // The tokens are already in the contract, so we don't require balance increase
         if (balance < state.lockedAmount) revert InsufficientAssetAmount();
         SafeERC20.safeTransfer(tokenERC20, config.receiver, state.lockedAmount);
     }
