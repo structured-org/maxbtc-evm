@@ -286,16 +286,15 @@ contract WithdrawalManagerTest is Test {
         // Owner updates config successfully
         address newCore = address(0x1111);
         address newWbtc = address(0x2222);
-        address newToken = address(0x3333);
 
         vm.prank(owner);
-        manager.updateConfig(newCore, newWbtc, newToken);
+        manager.updateConfig(newCore, newWbtc);
 
         WithdrawalManager.WithdrawalManagerConfig memory config = manager
             .getConfig();
         assertEq(config.coreContract, newCore);
         assertEq(config.wbtcContract, newWbtc);
-        assertEq(config.withdrawalTokenContract, newToken);
+        assertEq(config.withdrawalTokenContract, address(token));
     }
 
     function testUpdateConfigRevertsForNonOwner() public {
@@ -306,35 +305,27 @@ contract WithdrawalManagerTest is Test {
                 address(this)
             )
         );
-        manager.updateConfig(address(1), address(2), address(3));
+        manager.updateConfig(address(1), address(2));
     }
 
-    function testUpdateConfigRevertsForZeroAddresses() public {
-        // Zero addresses are forbidden
+    function testUpdateConfigPartial() public {
+        WithdrawalManager.WithdrawalManagerConfig memory config;
 
         vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                WithdrawalManager.InvalidCoreContractAddress.selector
-            )
-        );
-        manager.updateConfig(address(0), address(2), address(3));
+        manager.updateConfig(address(1), address(0));
+
+        config = manager.getConfig();
+        assertEq(config.coreContract, address(1));
+        assertEq(config.wbtcContract, address(wbtc));
+        assertEq(config.withdrawalTokenContract, address(token));
 
         vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                WithdrawalManager.InvalidwBTCContractAddress.selector
-            )
-        );
-        manager.updateConfig(address(1), address(0), address(3));
+        manager.updateConfig(address(0), address(2));
 
-        vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                WithdrawalManager.InvalidWithdrawalTokenContractAddress.selector
-            )
-        );
-        manager.updateConfig(address(1), address(2), address(0));
+        config = manager.getConfig();
+        assertEq(config.coreContract, address(1));
+        assertEq(config.wbtcContract, address(2));
+        assertEq(config.withdrawalTokenContract, address(token));
     }
 
     function testPauseAndUnpauseEmitsEventsAndChangesState() public {

@@ -54,7 +54,8 @@ contract WithdrawalManager is
     event Claimed(uint256 amount);
     event Paused();
     event Unpaused();
-    event ConfigUpdated(WithdrawalManagerConfig config);
+    event CoreUpdated(address newCore);
+    event WbtcUpdated(address newWbtc);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -134,18 +135,17 @@ contract WithdrawalManager is
 
     function updateConfig(
         address newCoreContract,
-        address newWbtcContract,
-        address newWithdrawalTokenContract
+        address newWbtcContract
     ) external onlyOwner {
         WithdrawalManagerConfig storage config = _getWithdrawalManagerConfig();
-        if (newCoreContract == address(0)) revert InvalidCoreContractAddress();
-        if (newWbtcContract == address(0)) revert InvalidwBTCContractAddress();
-        if (newWithdrawalTokenContract == address(0))
-            revert InvalidWithdrawalTokenContractAddress();
-        config.coreContract = newCoreContract;
-        config.wbtcContract = newWbtcContract;
-        config.withdrawalTokenContract = newWithdrawalTokenContract;
-        emit ConfigUpdated(config);
+        if (newCoreContract != address(0)) {
+            config.coreContract = newCoreContract;
+            emit CoreUpdated(newCoreContract);
+        }
+        if (newWbtcContract != address(0)) {
+            config.wbtcContract = newWbtcContract;
+            emit WbtcUpdated(newWbtcContract);
+        }
     }
 
     function _getWithdrawalManagerConfig()
