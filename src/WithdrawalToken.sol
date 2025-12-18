@@ -26,7 +26,7 @@ contract WithdrawalToken is
     Ownable2StepUpgradeable,
     UUPSUpgradeable
 {
-    event ConfigSettingUpdated(string field, address newValue);
+    event ConfigSettingUpdated(string field, string newValue);
 
     struct WithdrawalTokenConfig {
         address coreContract;
@@ -83,8 +83,6 @@ contract WithdrawalToken is
         }
     }
 
-    event ConfigSettingUpdated(string field, string newValue);
-
     function name() public view returns (string memory) {
         return _getWithdrawalTokenConfig().name;
     }
@@ -118,12 +116,15 @@ contract WithdrawalToken is
         config.name = newName;
         config.prefix = newPrefix;
         config.withdrawalManagerContract = newWithdrawalManagerContract;
-        emit ConfigSettingUpdated("coreContract", newCoreContract);
+        emit ConfigSettingUpdated(
+            "coreContract",
+            string(abi.encodePacked(newCoreContract))
+        );
         emit ConfigSettingUpdated("name", newName);
         emit ConfigSettingUpdated("prefix", newPrefix);
         emit ConfigSettingUpdated(
             "withdrawalManagerContract",
-            newWithdrawalManagerContract
+            string(abi.encodePacked(newWithdrawalManagerContract))
         );
     }
 
