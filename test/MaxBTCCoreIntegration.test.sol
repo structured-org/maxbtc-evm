@@ -195,7 +195,8 @@ contract MaxBTCCoreIntegrationTest is Test {
             address(this),
             address(core),
             address(wbtc),
-            address(withdrawalToken)
+            address(withdrawalToken),
+            address(allowlist)
         );
         feeCollector = FeeCollector(address(feeCollectorProxy));
         feeCollector.initialize(
@@ -210,14 +211,6 @@ contract MaxBTCCoreIntegrationTest is Test {
         // address(this) plays role of ics20 for maxBTC ERC20 contract, hence
         // it will need some rate limits allowance to pass these tests
         maxbtc.setEurekaRateLimits(1e18, 1e18);
-
-        // Manager needs to know core for finalized batch lookups
-        vm.prank(address(this));
-        manager.updateConfig(
-            address(core),
-            address(wbtc),
-            address(withdrawalToken)
-        );
     }
 
     function testIntegrationDepositWithdrawRedeem() external {
