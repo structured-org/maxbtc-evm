@@ -2,6 +2,9 @@
 pragma solidity >=0.8.28;
 
 import {
+    ReentrancyGuardUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {
     Initializable
 } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {
@@ -26,7 +29,12 @@ import {WaitosaurObserver} from "./WaitosaurObserver.sol";
 import {Allowlist} from "./Allowlist.sol";
 
 /// @notice Core settlement logic for the maxBTC protocol.
-contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
+contract MaxBTCCore is
+    Initializable,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
+    Ownable2StepUpgradeable
+{
     struct CoreConfig {
         address depositToken;
         address maxBtcToken;
@@ -364,7 +372,10 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     /// @notice Returns finalized batches in range [start; start+limit)
     /// @param start Index of first batch to retrieve (returns empty array if out of range)
     /// @param limit Maximum number of batches to retrieve (defaults to 10 if 0 provided, cannot exceed 100)
-    function finalizedBatches(uint256 start, uint256 limit) external view returns (Batch[] memory) {
+    function finalizedBatches(
+        uint256 start,
+        uint256 limit
+    ) external view returns (Batch[] memory) {
         FinalizedBatchesStorage
             storage finalized = _getFinalizedBatchesStorage();
         uint256 length = finalized.finalizedBatchIds.length;
@@ -544,7 +555,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         uint256 amount,
         address recipient,
         uint256 minReceiveAmount
-    ) external notPaused onlyAllowlisted(recipient) {
+    ) external notPaused onlyAllowlisted(recipient) nonReentrant {
         CoreConfig storage config = _getCoreConfig();
         if (recipient == address(0)) {
             revert InvalidRecipient();
@@ -585,7 +596,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
 
     function withdraw(
         uint256 maxBtcAmount
-    ) external notPaused onlyAllowlisted(_msgSender()) {
+    ) external notPaused onlyAllowlisted(_msgSender()) nonReentrant {
         CoreConfig storage config = _getCoreConfig();
         if (maxBtcAmount == 0) {
             revert InvalidAmount();

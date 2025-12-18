@@ -1,11 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    ReentrancyGuardUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 interface IReceiver {
     /// Returns current exchange rate and timestamp of publication.
@@ -20,6 +31,7 @@ interface ICoreContract {
 contract FeeCollector is
     Initializable,
     UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
     Ownable2StepUpgradeable
 {
     using SafeERC20 for IERC20;
@@ -131,7 +143,7 @@ contract FeeCollector is
         st.lastExchangeRate = initialRate;
     }
 
-    function collectFee() external {
+    function collectFee() external nonReentrant {
         Config storage config = _getConfig();
         State storage st = _getState();
 
