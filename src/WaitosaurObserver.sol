@@ -8,12 +8,14 @@ import {WaitosaurBase, WaitosaurState} from "./WaitosaurBase.sol";
 interface IAumOracle {
     function getSpotBalance(
         string calldata asset
-    ) external view returns (uint256);
+    ) external view returns (uint256 _balance, uint256 _ts);
 }
 
 struct WaitosaurObserverConfig {
     address oracle;
     string asset;
+    /// Maximum allowed age of oracle data, in seconds.
+    uint256 stalenessThreshold;
 }
 
 contract WaitosaurObserver is WaitosaurBase {
@@ -24,6 +26,11 @@ contract WaitosaurObserver is WaitosaurBase {
     error InvalidOracleAddress();
     error InvalidAsset();
     error ConfigCantBeUpdatedWhenLocked();
+    error StaleOracleData(
+        uint256 dataTimestamp,
+        uint256 currentTimestamp,
+        uint256 threshold
+    );
 
     // ---------------------------------------------------------------------
     // Events
@@ -58,7 +65,8 @@ contract WaitosaurObserver is WaitosaurBase {
         address locker_,
         address unlocker_,
         address oracle_,
-        string calldata asset_
+        string calldata asset_,
+        uint256 stalenessThreshold_
     ) public initializer {
         if (oracle_ == address(0)) revert InvalidOracleAddress();
         if (bytes(asset_).length == 0) revert InvalidAsset();
@@ -68,24 +76,42 @@ contract WaitosaurObserver is WaitosaurBase {
         WaitosaurObserverConfig storage config = _config();
         config.oracle = oracle_;
         config.asset = asset_;
+        config.stalenessThreshold = stalenessThreshold_;
+
+        // Verify initial oracle data is not stale
+        (, uint256 initialTimestamp) = IAumOracle(oracle_).getSpotBalance(
+            asset_
+        );
+        if (block.timestamp > initialTimestamp + stalenessThreshold_) {
+            revert StaleOracleData(
+                initialTimestamp,
+                block.timestamp,
+                stalenessThreshold_
+            );
+        }
     }
 
     // ---------------------------------------------------------------------
     // Execution
     // ---------------------------------------------------------------------
 
-    /// @notice Zero address or empty string means "do not change"
+    /// @notice Zero address, empty string, or zero stalenessThreshold means "do not change"
     function updateConfig(
         address newOracle,
-        string calldata newAsset
+        string calldata newAsset,
+        uint256 newStalenessThreshold
     ) external onlyOwner {
-        if (!unlocked()) revert ConfigCantBeUpdatedWhenLocked();
         WaitosaurObserverConfig storage config = _config();
+        WaitosaurState storage state = _getState();
+        if (state.lockedAmount != 0) revert ConfigCantBeUpdatedWhenLocked();
         if (newOracle != address(0)) {
             config.oracle = newOracle;
         }
         if (bytes(newAsset).length != 0) {
             config.asset = newAsset;
+        }
+        if (newStalenessThreshold != 0) {
+            config.stalenessThreshold = newStalenessThreshold;
         }
 
         emit ConfigUpdated(config);
@@ -111,9 +137,16 @@ contract WaitosaurObserver is WaitosaurBase {
     function _unlock() internal view override(WaitosaurBase) {
         WaitosaurObserverConfig storage config = _config();
         WaitosaurState storage state = _getState();
-        uint256 spotBalance = IAumOracle(config.oracle).getSpotBalance(
-            config.asset
-        );
+        (uint256 spotBalance, uint256 dataTimestamp) = IAumOracle(config.oracle)
+            .getSpotBalance(config.asset);
+
+        if (block.timestamp > dataTimestamp + config.stalenessThreshold) {
+            revert StaleOracleData(
+                dataTimestamp,
+                block.timestamp,
+                config.stalenessThreshold
+            );
+        }
 
         if (spotBalance < state.lockedAmount) {
             revert InsufficientAssetAmount();

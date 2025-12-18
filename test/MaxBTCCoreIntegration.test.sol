@@ -45,15 +45,21 @@ contract MockERC20 is ERC20 {
 
 contract MockAumOracle is IAumOracle {
     uint256 public balance;
+    uint256 public timestamp;
+
+    constructor() {
+        timestamp = block.timestamp;
+    }
 
     function setBalance(uint256 newBalance) external {
         balance = newBalance;
+        timestamp = block.timestamp;
     }
 
     function getSpotBalance(
         string calldata /* asset */
-    ) external view returns (uint256) {
-        return balance;
+    ) external view returns (uint256, uint256) {
+        return (balance, timestamp);
     }
 }
 
@@ -141,7 +147,14 @@ contract MaxBTCCoreIntegrationTest is Test {
             address(waitosaurObserverImpl),
             abi.encodeCall(
                 WaitosaurObserver.initialize,
-                (address(this), address(this), OPERATOR, address(oracle), "BTC")
+                (
+                    address(this),
+                    address(this),
+                    OPERATOR,
+                    address(oracle),
+                    "BTC",
+                    3600
+                )
             )
         );
         waitosaurObserver = WaitosaurObserver(address(waitosaurObserverProxy));
@@ -176,7 +189,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         withdrawalToken = WithdrawalToken(address(withdrawalProxy));
         manager = WithdrawalManager(address(managerProxy));
         waitosaurObserver.updateRoles(address(core), OPERATOR);
-        waitosaurObserver.updateConfig(address(oracle), "");
+        waitosaurObserver.updateConfig(address(oracle), "", 0);
         waitosaurHolder.updateRoles(OPERATOR, address(core));
         waitosaurHolder.updateConfig(address(manager));
 
