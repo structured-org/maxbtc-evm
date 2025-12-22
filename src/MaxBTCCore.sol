@@ -1,12 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    IERC20Metadata
+} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {MaxBTCERC20} from "./MaxBTCERC20.sol";
 import {WithdrawalToken} from "./WithdrawalToken.sol";
 import {WaitosaurHolder} from "./WaitosaurHolder.sol";
@@ -133,7 +143,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         0x6ba6b86991a1f4fd0c4351857af540e99efdf5c523d2e0e4d1a5236d81710f00;
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.core.fsm_state")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant FSM_STORAGE_SLOT =
-        0x6d0daac8be12ff028013290dddbb8756fc5a2529ca2bd6de90f4c8bd522e4300;
+        0x6bffc8143743f0d5390d797c32fc2305b8f8757da76d1c170e18732d7a87fb00;
 
     struct BatchState {
         Batch activeBatch;
