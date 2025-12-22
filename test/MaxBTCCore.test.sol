@@ -161,6 +161,7 @@ contract MaxBTCCoreTest is Test {
         waitosaurHolder.updateConfig(WITHDRAWAL_MANAGER);
 
         allowlist.allow(_arr(USER));
+        provider.publishAum(int256(1), depositToken.decimals());
     }
 
     function testDepositMintsWithFeeAndAllowlist() external {
@@ -209,6 +210,7 @@ contract MaxBTCCoreTest is Test {
 
     function testMintFeeRevertsWhenAumNonPositive() external {
         uint256 amount = 1e7;
+        provider.publishAum(int256(-1), depositToken.decimals());
         // do not publish AUM (default 0) -> should revert
         vm.prank(FEE_COLLECTOR);
         vm.expectRevert(MaxBTCCore.AumMustBePositive.selector);
