@@ -3,8 +3,12 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {Allowlist, IZkMe} from "../src/Allowlist.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract MockZkMe is IZkMe {
     mapping(address => bool) public approved;
@@ -110,6 +114,41 @@ contract AllowlistTest is Test {
         vm.prank(OWNER);
         vm.expectRevert(Allowlist.ZeroAddressNotAllowed.selector);
         allowlist.setZkMeSettings(address(zkme), address(0));
+    }
+
+    function testAllowDuplicateReverts() external {
+        vm.prank(OWNER);
+        vm.expectRevert(
+            abi.encodeWithSelector(Allowlist.DuplicateAddress.selector, USER)
+        );
+        allowlist.allow(_arr(USER, USER));
+    }
+
+    function testAllowAlreadyAllowedReverts() external {
+        vm.prank(OWNER);
+        allowlist.allow(_arr(USER));
+
+        vm.prank(OWNER);
+        vm.expectRevert(
+            abi.encodeWithSelector(Allowlist.AlreadyAllowed.selector, USER)
+        );
+        allowlist.allow(_arr(USER));
+    }
+
+    function testDenyDuplicateReverts() external {
+        vm.prank(OWNER);
+        vm.expectRevert(
+            abi.encodeWithSelector(Allowlist.DuplicateAddress.selector, USER)
+        );
+        allowlist.deny(_arr(USER, USER));
+    }
+
+    function testDenyAddressNotFoundReverts() external {
+        vm.prank(OWNER);
+        vm.expectRevert(
+            abi.encodeWithSelector(Allowlist.AddressNotFound.selector, USER)
+        );
+        allowlist.deny(_arr(USER));
     }
 
     function testTwoStepOwnershipTransfer() external {

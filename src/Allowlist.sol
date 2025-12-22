@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
 /// @notice Minimal external interface for ZKMe-like approval checker.
 interface IZkMe {
@@ -40,6 +46,9 @@ contract Allowlist is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     event ZkMeSettingsReset();
 
     error ZeroAddressNotAllowed();
+    error DuplicateAddress(address account);
+    error AlreadyAllowed(address account);
+    error AddressNotFound(address account);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -58,26 +67,48 @@ contract Allowlist is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         }
     }
 
+    function _assertNoDuplicate(address[] calldata accounts) private pure {
+        uint256 len = accounts.length;
+        for (uint256 i = 0; i < len; i++) {
+            address account = accounts[i];
+            for (uint256 j = 0; j < i; j++) {
+                if (accounts[j] == account) {
+                    revert DuplicateAddress(account);
+                }
+            }
+        }
+    }
+
     function allow(address[] calldata accounts) external onlyOwner {
         uint256 len = accounts.length;
+        AllowlistStorage storage $ = _getStorage();
+        _assertNoDuplicate(accounts);
         for (uint256 i = 0; i < len; i++) {
             address account = accounts[i];
             if (account == address(0)) {
                 revert ZeroAddressNotAllowed();
             }
-            _getStorage().allowed[account] = true;
+            if ($.allowed[account]) {
+                revert AlreadyAllowed(account);
+            }
+            $.allowed[account] = true;
             emit AddressAllowed(account);
         }
     }
 
     function deny(address[] calldata accounts) external onlyOwner {
         uint256 len = accounts.length;
+        AllowlistStorage storage $ = _getStorage();
+        _assertNoDuplicate(accounts);
         for (uint256 i = 0; i < len; i++) {
             address account = accounts[i];
             if (account == address(0)) {
                 revert ZeroAddressNotAllowed();
             }
-            delete _getStorage().allowed[account];
+            if (!$.allowed[account]) {
+                revert AddressNotFound(account);
+            }
+            delete $.allowed[account];
             emit AddressDenied(account);
         }
     }
