@@ -2,7 +2,9 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {WithdrawalManager, ICoreContract} from "../src/WithdrawalManager.sol";
 import {WithdrawalToken} from "../src/WithdrawalToken.sol";
@@ -155,23 +157,9 @@ contract WithdrawalManagerTest is Test {
         uint256 collectedAmount = 1_000_000_000;
         core.setCollectedAmount(BATCH_ID, collectedAmount);
 
-        // Deploy WithdrawalToken via UUPS proxy
+        // Deploy WithdrawalToken via UUPS proxy (deferred init)
         WithdrawalToken tokenImpl = new WithdrawalToken();
-        bytes memory tokenInitData = abi.encodeCall(
-            WithdrawalToken.initialize,
-            (
-                owner,
-                address(core),
-                "https://api.example.com/",
-                "WithdrawalToken",
-                "WRT"
-            )
-        );
-
-        ERC1967Proxy tokenProxy = new ERC1967Proxy(
-            address(tokenImpl),
-            tokenInitData
-        );
+        ERC1967Proxy tokenProxy = new ERC1967Proxy(address(tokenImpl), "");
         token = WithdrawalToken(address(tokenProxy));
 
         // Deploy WithdrawalManager via UUPS proxy
@@ -186,6 +174,16 @@ contract WithdrawalManagerTest is Test {
             managerInitData
         );
         manager = WithdrawalManager(address(managerProxy));
+
+        // Now initialize withdrawal token with the manager address
+        token.initialize(
+            owner,
+            address(core),
+            address(managerProxy),
+            "https://api.example.com/",
+            "WithdrawalToken",
+            "WRT"
+        );
 
         // Fund WithdrawalManager with WBTC so it can redeem users
         wbtc.mint(address(manager), collectedAmount);

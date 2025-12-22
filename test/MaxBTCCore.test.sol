@@ -153,6 +153,7 @@ contract MaxBTCCoreTest is Test {
         withdrawalToken.initialize(
             address(this),
             address(core),
+            WITHDRAWAL_MANAGER,
             "ipfs://test/",
             "Redemption",
             "rMAX-"

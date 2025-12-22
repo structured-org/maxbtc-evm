@@ -186,6 +186,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         withdrawalToken.initialize(
             address(this),
             address(core),
+            address(managerProxy),
             "ipfs://base/",
             "Redemption",
             "rMAX-"
