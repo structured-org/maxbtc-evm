@@ -95,12 +95,7 @@ contract WithdrawalTokenTest is Test {
     function testUpdateCoreAddressByOwner() public {
         address newCore = address(0xDEAD);
         vm.prank(owner);
-        token.updateConfig(
-            newCore,
-            "WithdrawalToken",
-            "WRT-",
-            withdrawalManager
-        );
+        token.updateConfig(newCore, withdrawalManager);
         // new core should be able to mint
         vm.prank(newCore);
         token.mint(user, 1, 1, "");
@@ -116,11 +111,6 @@ contract WithdrawalTokenTest is Test {
                 address(this)
             )
         );
-        token.updateConfig(
-            newCore,
-            "WithdrawalToken",
-            "WRT-",
-            withdrawalManager
-        );
+        token.updateConfig(newCore, withdrawalManager);
     }
 }
