@@ -25,6 +25,8 @@ contract FeeCollector is
     using SafeERC20 for IERC20;
 
     uint256 private constant ONE = 1e18;
+    uint256 private constant MIN_COLLECTION_PERIOD_SECONDS = 60 * 60; // one hour
+    uint256 private constant MAX_COLLECTION_PERIOD_SECONDS = 60 * 60 * 24 * 30; // one month
 
     struct Config {
         address coreContract;
@@ -54,6 +56,7 @@ contract FeeCollector is
     error NegativeOrZeroApy(uint256 currentRate, uint256 lastRate);
     error InvalidZeroAmount();
     error InvalidErReceiverAddress();
+    error InvalidCollectionPeriodSeconds();
 
     /// @notice Emitted when fees are collected and minted to the core contract.
     event FeeCollected(
@@ -102,6 +105,12 @@ contract FeeCollector is
             feeApyReductionPercentage_ == 0 || feeApyReductionPercentage_ >= ONE
         ) {
             revert InvalidFeeReductionPercentage();
+        }
+        if (
+            collectionPeriodSeconds_ < MIN_COLLECTION_PERIOD_SECONDS ||
+            collectionPeriodSeconds_ > MAX_COLLECTION_PERIOD_SECONDS
+        ) {
+            revert InvalidCollectionPeriodSeconds();
         }
 
         __Ownable_init(owner_);
@@ -184,6 +193,12 @@ contract FeeCollector is
             newFeeApyReductionPercentage >= ONE
         ) {
             revert InvalidFeeReductionPercentage();
+        }
+        if (
+            newCollectionPeriodSeconds < MIN_COLLECTION_PERIOD_SECONDS ||
+            newCollectionPeriodSeconds > MAX_COLLECTION_PERIOD_SECONDS
+        ) {
+            revert InvalidCollectionPeriodSeconds();
         }
 
         Config storage config = _getConfig();

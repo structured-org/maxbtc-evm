@@ -204,7 +204,7 @@ contract MaxBTCCoreIntegrationTest is Test {
             address(core),
             address(provider),
             FEE_REDUCTION,
-            1,
+            3600,
             address(maxbtc)
         );
 
@@ -369,7 +369,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         uint256 totalSupplyBefore = maxbtc.totalSupply();
 
         // Advance time to satisfy collection period and increase ER
-        vm.warp(block.timestamp + 2);
+        vm.warp(block.timestamp + 3601);
         provider.publish(11e17, block.timestamp); // 1.1x ER
 
         provider.publishAum(int256(wbtc.totalSupply()), wbtc.decimals());
