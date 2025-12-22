@@ -2,7 +2,9 @@
 pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {WaitosaurBase, WaitosaurState} from "./WaitosaurBase.sol";
 
 struct WaitosaurHolderConfig {
@@ -17,6 +19,7 @@ contract WaitosaurHolder is WaitosaurBase {
 
     error InvalidTokenAddress();
     error InvalidReceiverAddress();
+    error ConfigCantBeUpdatedWhenLocked();
 
     // ---------------------------------------------------------------------
     // Events
@@ -69,6 +72,8 @@ contract WaitosaurHolder is WaitosaurBase {
     // ---------------------------------------------------------------------
 
     function updateConfig(address newReceiver) external onlyOwner {
+        WaitosaurState storage state = _getState();
+        if (state.lockedAmount > 0) revert ConfigCantBeUpdatedWhenLocked();
         if (newReceiver == address(0)) revert InvalidReceiverAddress();
         WaitosaurHolderConfig storage config = _getWaitosaurConfig();
         config.receiver = newReceiver;

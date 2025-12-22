@@ -2,10 +2,20 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import {WaitosaurObserver, WaitosaurObserverConfig, IAumOracle} from "../src/WaitosaurObserver.sol";
-import {WaitosaurBase, WaitosaurState, WaitosaurAccess} from "../src/WaitosaurBase.sol";
+import {
+    WaitosaurObserver,
+    WaitosaurObserverConfig,
+    IAumOracle
+} from "../src/WaitosaurObserver.sol";
+import {
+    WaitosaurBase,
+    WaitosaurState,
+    WaitosaurAccess
+} from "../src/WaitosaurBase.sol";
 
 /// @notice Simple mock oracle returning a preset balance
 contract MockAumOracle is IAumOracle {
@@ -256,6 +266,17 @@ contract WaitosaurObserverTest is Test {
         WaitosaurObserverConfig memory cfg = observer.getConfig();
         assertEq(cfg.oracle, address(oracle));
         assertEq(cfg.asset, asset);
+    }
+
+    function testUpdateConfigRevertsWhenLocked() public {
+        vm.prank(locker);
+        observer.lock(1 ether);
+
+        vm.prank(owner);
+        vm.expectRevert(
+            WaitosaurObserver.ConfigCantBeUpdatedWhenLocked.selector
+        );
+        observer.updateConfig(address(0x12), "ETH");
     }
 
     // -------------------------------------------------------------
