@@ -11,6 +11,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {Batch} from "./types/CoreTypes.sol";
 import {WithdrawalToken} from "./WithdrawalToken.sol";
+import {Allowlist} from "./Allowlist.sol";
 
 interface ICoreContract {
     function finalizedBatch(uint256) external view returns (Batch memory);
@@ -26,6 +27,7 @@ contract WithdrawalManager is
         address coreContract;
         address wbtcContract;
         address withdrawalTokenContract;
+        address allowlistContract;
     }
 
     struct PaidAmountStorage {
@@ -36,10 +38,12 @@ contract WithdrawalManager is
     error InvalidCoreContractAddress();
     error InvalidwBTCContractAddress();
     error InvalidWithdrawalTokenContractAddress();
+    error InvalidAllowlistContractAddress();
     error BatchSupportNotEnabled();
     error InvalidWithdrawalToken();
     error ContractPaused();
     error RedemptionTokenSupplyIsZero();
+    error AddressNotAllowed(address account);
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.config")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant CONFIG_STORAGE_SLOT =
@@ -65,19 +69,23 @@ contract WithdrawalManager is
         address owner_,
         address _coreContract,
         address _wbtcContract,
-        address _withdrawalTokenContract
+        address _withdrawalTokenContract,
+        address _allowlist
     ) public initializer {
         if (_coreContract == address(0)) revert InvalidCoreContractAddress();
         if (_wbtcContract == address(0)) revert InvalidwBTCContractAddress();
         if (_withdrawalTokenContract == address(0))
             revert InvalidWithdrawalTokenContractAddress();
+        if (_allowlist == address(0)) revert InvalidAllowlistContractAddress();
         __Ownable_init(owner_);
         __Ownable2Step_init();
         __UUPSUpgradeable_init();
+        __ERC1155Holder_init();
         WithdrawalManagerConfig storage config = _getWithdrawalManagerConfig();
         config.coreContract = _coreContract;
         config.wbtcContract = _wbtcContract;
         config.withdrawalTokenContract = _withdrawalTokenContract;
+        config.allowlistContract = _allowlist;
     }
 
     function onERC1155Received(
@@ -94,6 +102,10 @@ contract WithdrawalManager is
         require(
             _msgSender() == address(config.withdrawalTokenContract),
             InvalidWithdrawalToken()
+        );
+        require(
+            Allowlist(config.allowlistContract).isAddressAllowed(from),
+            AddressNotAllowed(from)
         );
 
         Batch memory finalizedBatch = ICoreContract(config.coreContract)
@@ -135,16 +147,19 @@ contract WithdrawalManager is
     function updateConfig(
         address newCoreContract,
         address newWbtcContract,
-        address newWithdrawalTokenContract
+        address newWithdrawalTokenContract,
+        address newAllowlistContract
     ) external onlyOwner {
         WithdrawalManagerConfig storage config = _getWithdrawalManagerConfig();
         if (newCoreContract == address(0)) revert InvalidCoreContractAddress();
         if (newWbtcContract == address(0)) revert InvalidwBTCContractAddress();
         if (newWithdrawalTokenContract == address(0))
             revert InvalidWithdrawalTokenContractAddress();
+        if (newAllowlistContract == address(0)) revert InvalidAllowlistContractAddress();
         config.coreContract = newCoreContract;
         config.wbtcContract = newWbtcContract;
         config.withdrawalTokenContract = newWithdrawalTokenContract;
+        config.allowlistContract = newAllowlistContract;
         emit ConfigUpdated(config);
     }
 
