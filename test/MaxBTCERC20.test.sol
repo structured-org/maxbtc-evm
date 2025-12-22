@@ -120,17 +120,13 @@ contract MaxBTCERC20Test is Test {
             MaxBTCERC20.initialize,
             (OWNER, address(0), "Structured maxBTC", "maxBTC")
         );
-        vm.expectRevert(
-            abi.encodeWithSelector(MaxBTCERC20.InvalidICS20Address.selector)
-        );
+        vm.expectRevert(MaxBTCERC20.InvalidICS20Address.selector);
         new ERC1967Proxy(address(implementation), initCall);
     }
 
     function testUpdateIcs20ZeroReverts() external {
         vm.startPrank(OWNER);
-        vm.expectRevert(
-            abi.encodeWithSelector(MaxBTCERC20.InvalidICS20Address.selector)
-        );
+        vm.expectRevert(MaxBTCERC20.InvalidICS20Address.selector);
         maxBtcErc20.updateIcs20(address(0));
         vm.stopPrank();
     }
