@@ -101,27 +101,19 @@ contract WithdrawalToken is
 
     function updateConfig(
         address newCoreContract,
-        string memory newName,
-        string memory newPrefix,
         address newWithdrawalManagerContract
     ) external onlyOwner {
         WithdrawalTokenConfig storage config = _getWithdrawalTokenConfig();
         if (newCoreContract == address(0)) revert InvalidCoreContractAddress();
         if (newWithdrawalManagerContract == address(0))
             revert InvalidWithdrawalManagerContractAddress();
-        if (bytes(newName).length == 0) revert InvalidName();
-        if (bytes(newPrefix).length == 0) revert InvalidPrefix();
 
         config.coreContract = newCoreContract;
-        config.name = newName;
-        config.prefix = newPrefix;
         config.withdrawalManagerContract = newWithdrawalManagerContract;
         emit ConfigSettingUpdated(
             "coreContract",
             string(abi.encodePacked(newCoreContract))
         );
-        emit ConfigSettingUpdated("name", newName);
-        emit ConfigSettingUpdated("prefix", newPrefix);
         emit ConfigSettingUpdated(
             "withdrawalManagerContract",
             string(abi.encodePacked(newWithdrawalManagerContract))
