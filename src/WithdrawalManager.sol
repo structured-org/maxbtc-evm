@@ -65,7 +65,6 @@ contract WithdrawalManager is
     bytes32 private constant PAUSE_STORAGE_SLOT =
         0x67e38bbcda9028a2e19a608178c5c2c77532c8eeaf31e6b94ce02f730b76ac00;
 
-    event Claimed(uint256 amount);
     event Paused();
     event Unpaused();
     event ConfigSettingUpdated(string key, address newValue);
