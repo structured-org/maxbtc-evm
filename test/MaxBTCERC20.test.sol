@@ -3,7 +3,9 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {MaxBTCERC20} from "../src/MaxBTCERC20.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MaxBTCERC20Test is Test {
     address private constant OWNER = address(1);
@@ -86,7 +88,7 @@ contract MaxBTCERC20Test is Test {
         maxBtcErc20.mint(ESCROW, 120);
     }
 
-        function testBurnSuccessRateLimited() external {
+    function testBurnSuccessRateLimited() external {
         vm.startPrank(CORE);
         maxBtcErc20.mint(ESCROW, 100);
         vm.startPrank(OWNER);
@@ -110,5 +112,26 @@ contract MaxBTCERC20Test is Test {
             )
         );
         maxBtcErc20.burn(ESCROW, 120);
+    }
+
+    function testInitializeZeroIcs20Reverts() external {
+        MaxBTCERC20 implementation = new MaxBTCERC20();
+        bytes memory initCall = abi.encodeCall(
+            MaxBTCERC20.initialize,
+            (OWNER, address(0), "Structured maxBTC", "maxBTC")
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(MaxBTCERC20.InvalidICS20Address.selector)
+        );
+        new ERC1967Proxy(address(implementation), initCall);
+    }
+
+    function testUpdateIcs20ZeroReverts() external {
+        vm.startPrank(OWNER);
+        vm.expectRevert(
+            abi.encodeWithSelector(MaxBTCERC20.InvalidICS20Address.selector)
+        );
+        maxBtcErc20.updateIcs20(address(0));
+        vm.stopPrank();
     }
 }
