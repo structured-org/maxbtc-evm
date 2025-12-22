@@ -166,7 +166,13 @@ contract WithdrawalManagerTest is Test {
         WithdrawalManager managerImpl = new WithdrawalManager();
         bytes memory managerInitData = abi.encodeCall(
             WithdrawalManager.initialize,
-            (owner, address(core), address(wbtc), address(token), address(allowlist))
+            (
+                owner,
+                address(core),
+                address(wbtc),
+                address(token),
+                address(allowlist)
+            )
         );
 
         ERC1967Proxy managerProxy = new ERC1967Proxy(
@@ -292,19 +298,14 @@ contract WithdrawalManagerTest is Test {
 
     function testUpdateConfigByOwner() public {
         // Owner updates config successfully
-        address newCore = address(0x1111);
-        address newWbtc = address(0x2222);
-        address newToken = address(0x3333);
         address newAllowlist = address(0x4444);
 
         vm.prank(owner);
-        manager.updateConfig(newCore, newWbtc, newToken, newAllowlist);
+        manager.updateConfig(newAllowlist);
 
         WithdrawalManager.WithdrawalManagerConfig memory config = manager
             .getConfig();
-        assertEq(config.coreContract, newCore);
-        assertEq(config.wbtcContract, newWbtc);
-        assertEq(config.withdrawalTokenContract, newToken);
+
         assertEq(config.allowlistContract, newAllowlist);
     }
 
@@ -316,43 +317,18 @@ contract WithdrawalManagerTest is Test {
                 address(this)
             )
         );
-        manager.updateConfig(address(1), address(2), address(3), address(4));
+        manager.updateConfig(address(4));
     }
 
     function testUpdateConfigRevertsForZeroAddresses() public {
         // Zero addresses are forbidden
-
-        vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                WithdrawalManager.InvalidCoreContractAddress.selector
-            )
-        );
-        manager.updateConfig(address(0), address(2), address(3), address(4));
-
-        vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                WithdrawalManager.InvalidwBTCContractAddress.selector
-            )
-        );
-        manager.updateConfig(address(1), address(0), address(3), address(4));
-
-        vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                WithdrawalManager.InvalidWithdrawalTokenContractAddress.selector
-            )
-        );
-        manager.updateConfig(address(1), address(2), address(0), address(4));
-
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
                 WithdrawalManager.InvalidAllowlistContractAddress.selector
             )
         );
-        manager.updateConfig(address(1), address(2), address(3), address(0));
+        manager.updateConfig(address(0));
     }
 
     function testPauseAndUnpauseEmitsEventsAndChangesState() public {
@@ -420,7 +396,12 @@ contract WithdrawalManagerTest is Test {
         token.safeTransferFrom(userA, stranger, batchId, 4, "");
 
         vm.prank(stranger);
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalManager.AddressNotAllowed.selector, stranger));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WithdrawalManager.AddressNotAllowed.selector,
+                stranger
+            )
+        );
         token.safeTransferFrom(stranger, address(manager), batchId, 4, "");
     }
 
@@ -710,7 +691,10 @@ contract WithdrawalManagerTest is Test {
         arr[0] = a;
     }
 
-    function _arr(address a, address b) private pure returns (address[] memory arr) {
+    function _arr(
+        address a,
+        address b
+    ) private pure returns (address[] memory arr) {
         arr = new address[](2);
         arr[0] = a;
         arr[1] = b;
