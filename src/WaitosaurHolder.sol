@@ -72,8 +72,7 @@ contract WaitosaurHolder is WaitosaurBase {
     // ---------------------------------------------------------------------
 
     function updateConfig(address newReceiver) external onlyOwner {
-        WaitosaurState storage state = _getState();
-        if (state.lockedAmount > 0) revert ConfigCantBeUpdatedWhenLocked();
+        if (!unlocked()) revert ConfigCantBeUpdatedWhenLocked();
         if (newReceiver == address(0)) revert InvalidReceiverAddress();
         WaitosaurHolderConfig storage config = _getWaitosaurConfig();
         config.receiver = newReceiver;

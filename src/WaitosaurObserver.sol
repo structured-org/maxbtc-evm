@@ -79,8 +79,7 @@ contract WaitosaurObserver is WaitosaurBase {
         address newOracle,
         string calldata newAsset
     ) external onlyOwner {
-        WaitosaurState storage state = _getState();
-        if (state.lockedAmount > 0) revert ConfigCantBeUpdatedWhenLocked();
+        if (!unlocked()) revert ConfigCantBeUpdatedWhenLocked();
         WaitosaurObserverConfig storage config = _config();
         if (newOracle != address(0)) {
             config.oracle = newOracle;
