@@ -10,7 +10,9 @@ import {WaitosaurHolder} from "../src/WaitosaurHolder.sol";
 import {Allowlist} from "../src/Allowlist.sol";
 import {Receiver} from "../src/Receiver.sol";
 import {Batch} from "../src/types/CoreTypes.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MockERC20 is ERC20 {
     uint8 private immutable _DECIMALS;
@@ -159,6 +161,7 @@ contract MaxBTCCoreTest is Test {
         waitosaurHolder.updateConfig(WITHDRAWAL_MANAGER);
 
         allowlist.allow(_arr(USER));
+        provider.publishAum(int256(1), depositToken.decimals());
     }
 
     function testDepositMintsWithFeeAndAllowlist() external {
@@ -199,9 +202,19 @@ contract MaxBTCCoreTest is Test {
 
     function testMintFeeByCollector() external {
         uint256 amount = 3e7;
+        provider.publishAum(int256(1), depositToken.decimals());
         vm.prank(FEE_COLLECTOR);
         core.mintFee(amount);
         assertEq(maxbtc.balanceOf(FEE_COLLECTOR), amount, "fee minted");
+    }
+
+    function testMintFeeRevertsWhenAumNonPositive() external {
+        uint256 amount = 1e7;
+        provider.publishAum(int256(-1), depositToken.decimals());
+        // do not publish AUM (default 0) -> should revert
+        vm.prank(FEE_COLLECTOR);
+        vm.expectRevert(MaxBTCCore.AumMustBePositive.selector);
+        core.mintFee(amount);
     }
 
     function testDepositRejectsNotAllowlisted() external {
