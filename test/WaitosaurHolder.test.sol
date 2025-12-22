@@ -5,7 +5,9 @@ import {Test} from "forge-std/Test.sol";
 
 import "../src/WaitosaurHolder.sol" as waitosaurSrc;
 import {WaitosaurBase, WaitosaurAccess} from "../src/WaitosaurBase.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MockERC20 {
     string public name = "MockToken";
@@ -186,6 +188,17 @@ contract WaitosaurHolderTest is Test {
             })
         );
         waitosaur.updateConfig(newReceiver);
+    }
+
+    function testUpdateConfigRevertsWhenLocked() public {
+        vm.prank(locker);
+        waitosaur.lock(1 ether);
+
+        vm.prank(owner);
+        vm.expectRevert(
+            waitosaurSrc.WaitosaurHolder.ConfigCantBeUpdatedWhenLocked.selector
+        );
+        waitosaur.updateConfig(address(0x99));
     }
 
     function testNewConfigUsedForLockUnlock() public {
