@@ -153,29 +153,11 @@ contract WithdrawalManager is
         revert BatchSupportNotEnabled();
     }
 
-    function updateConfig(
-        address newCoreContract,
-        address newWbtcContract,
-        address newWithdrawalTokenContract,
-        address newAllowlistContract
-    ) external onlyOwner {
+    function updateConfig(address newAllowlistContract) external onlyOwner {
         WithdrawalManagerConfig storage config = _getWithdrawalManagerConfig();
-        if (newCoreContract == address(0)) revert InvalidCoreContractAddress();
-        if (newWbtcContract == address(0)) revert InvalidwBTCContractAddress();
-        if (newWithdrawalTokenContract == address(0))
-            revert InvalidWithdrawalTokenContractAddress();
         if (newAllowlistContract == address(0))
             revert InvalidAllowlistContractAddress();
-        config.coreContract = newCoreContract;
-        config.wbtcContract = newWbtcContract;
-        config.withdrawalTokenContract = newWithdrawalTokenContract;
         config.allowlistContract = newAllowlistContract;
-        emit ConfigSettingUpdated("coreContract", newCoreContract);
-        emit ConfigSettingUpdated("wbtcContract", newWbtcContract);
-        emit ConfigSettingUpdated(
-            "withdrawalTokenContract",
-            newWithdrawalTokenContract
-        );
         emit ConfigSettingUpdated("allowlistContract", newAllowlistContract);
     }
 
