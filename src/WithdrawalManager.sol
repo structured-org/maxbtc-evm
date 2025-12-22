@@ -1,13 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import {ERC1155HolderUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
+import {
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    ERC1155HolderUpgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
 import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {Batch} from "./types/CoreTypes.sol";
 import {WithdrawalToken} from "./WithdrawalToken.sol";
@@ -58,7 +68,7 @@ contract WithdrawalManager is
     event Claimed(uint256 amount);
     event Paused();
     event Unpaused();
-    event ConfigUpdated(WithdrawalManagerConfig config);
+    event ConfigSettingUpdated(string key, address newValue);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -155,12 +165,19 @@ contract WithdrawalManager is
         if (newWbtcContract == address(0)) revert InvalidwBTCContractAddress();
         if (newWithdrawalTokenContract == address(0))
             revert InvalidWithdrawalTokenContractAddress();
-        if (newAllowlistContract == address(0)) revert InvalidAllowlistContractAddress();
+        if (newAllowlistContract == address(0))
+            revert InvalidAllowlistContractAddress();
         config.coreContract = newCoreContract;
         config.wbtcContract = newWbtcContract;
         config.withdrawalTokenContract = newWithdrawalTokenContract;
         config.allowlistContract = newAllowlistContract;
-        emit ConfigUpdated(config);
+        emit ConfigSettingUpdated("coreContract", newCoreContract);
+        emit ConfigSettingUpdated("wbtcContract", newWbtcContract);
+        emit ConfigSettingUpdated(
+            "withdrawalTokenContract",
+            newWithdrawalTokenContract
+        );
+        emit ConfigSettingUpdated("allowlistContract", newAllowlistContract);
     }
 
     function _getWithdrawalManagerConfig()
