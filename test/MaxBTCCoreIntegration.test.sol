@@ -177,12 +177,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         waitosaurHolder.updateConfig(address(manager));
 
         // Now initialize dependent contracts with the finalized core address.
-        maxbtc.initialize(
-            address(this),
-            address(this),
-            "maxBTC",
-            "maxBTC"
-        );
+        maxbtc.initialize(address(this), address(this), "maxBTC", "maxBTC");
         maxbtc.initializeV2(address(core));
         withdrawalToken.initialize(
             address(this),
@@ -203,7 +198,7 @@ contract MaxBTCCoreIntegrationTest is Test {
             address(core),
             address(provider),
             FEE_REDUCTION,
-            1,
+            3600,
             address(maxbtc)
         );
 
@@ -376,7 +371,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         uint256 totalSupplyBefore = maxbtc.totalSupply();
 
         // Advance time to satisfy collection period and increase ER
-        vm.warp(block.timestamp + 2);
+        vm.warp(block.timestamp + 3601);
         provider.publish(11e17, block.timestamp); // 1.1x ER
 
         // Collect fee (mints to feeCollector address through core.mintFee)

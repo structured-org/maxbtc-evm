@@ -219,6 +219,40 @@ contract FeeCollectorTest is Test {
         new ERC1967Proxy(address(impl), data);
     }
 
+    function testInitializeRevertsOnInvalidCollectionPeriodSecondsTooLow()
+        public
+    {
+        FeeCollector impl = new FeeCollector();
+        bytes memory data = abi.encodeWithSelector(
+            FeeCollector.initialize.selector,
+            owner,
+            address(core),
+            address(core),
+            0.1e18,
+            60 * 60 - 1,
+            address(maxbtc)
+        );
+        vm.expectRevert(FeeCollector.InvalidCollectionPeriodSeconds.selector);
+        new ERC1967Proxy(address(impl), data);
+    }
+
+    function testInitializeRevertsOnInvalidCollectionPeriodSecondsTooHigh()
+        public
+    {
+        FeeCollector impl = new FeeCollector();
+        bytes memory data = abi.encodeWithSelector(
+            FeeCollector.initialize.selector,
+            owner,
+            address(core),
+            address(core),
+            0.1e18,
+            60 * 60 * 24 * 30 + 1,
+            address(maxbtc)
+        );
+        vm.expectRevert(FeeCollector.InvalidCollectionPeriodSeconds.selector);
+        new ERC1967Proxy(address(impl), data);
+    }
+
     function testInitializeStoresConfigAndState() public view {
         FeeCollector.Config memory cfg = feeCollector.getConfig();
         FeeCollector.State memory st = feeCollector.getState();
@@ -525,6 +559,30 @@ contract FeeCollectorTest is Test {
     function testUpdateConfigRevertsOnInvalidFeeReductionTooHigh() public {
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
         feeCollector.updateConfig(address(core), address(core), ONE, 7200);
+    }
+
+    function testUpdateConfigRevertsOnInvalidCollectionPeriodSecondsTooLow()
+        public
+    {
+        vm.expectRevert(FeeCollector.InvalidCollectionPeriodSeconds.selector);
+        feeCollector.updateConfig(
+            address(core),
+            address(core),
+            0.1e18,
+            60 * 60 - 1
+        );
+    }
+
+    function testUpdateConfigRevertsOnInvalidCollectionPeriodSecondsTooHigh()
+        public
+    {
+        vm.expectRevert(FeeCollector.InvalidCollectionPeriodSeconds.selector);
+        feeCollector.updateConfig(
+            address(core),
+            address(core),
+            0.1e18,
+            60 * 60 * 24 * 30 + 1
+        );
     }
 
     function testUpdateConfigChangesConfig() public {
