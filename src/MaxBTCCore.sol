@@ -1,19 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { MaxBTCERC20 } from "./MaxBTCERC20.sol";
-import { WithdrawalToken } from "./WithdrawalToken.sol";
-import { WaitosaurHolder } from "./WaitosaurHolder.sol";
-import { Batch } from "./types/CoreTypes.sol";
-import { IExchangeRateProvider } from "./types/IExchangeRateProvider.sol";
-import { WaitosaurObserver } from "./WaitosaurObserver.sol";
-import { Allowlist } from "./Allowlist.sol";
+import {
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    IERC20Metadata
+} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {MaxBTCERC20} from "./MaxBTCERC20.sol";
+import {WithdrawalToken} from "./WithdrawalToken.sol";
+import {WaitosaurHolder} from "./WaitosaurHolder.sol";
+import {Batch} from "./types/CoreTypes.sol";
+import {IExchangeRateProvider} from "./types/IExchangeRateProvider.sol";
+import {WaitosaurObserver} from "./WaitosaurObserver.sol";
+import {Allowlist} from "./Allowlist.sol";
 
 /// @notice Core settlement logic for the maxBTC protocol.
 contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
@@ -49,11 +59,25 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
 
     /// @notice Events
 
-    event Deposit(address indexed depositor, address indexed recipient, uint256 depositAmount, uint256 maxBtcMinted);
+    event Deposit(
+        address indexed depositor,
+        address indexed recipient,
+        uint256 depositAmount,
+        uint256 maxBtcMinted
+    );
 
-    event Withdrawal(address indexed withdrawer, uint256 maxBtcBurned, uint256 batchId);
+    event Withdrawal(
+        address indexed withdrawer,
+        uint256 maxBtcBurned,
+        uint256 batchId
+    );
 
-    event BatchProcessed(uint256 indexed batchId, uint256 btcRequested, uint256 collectedAmount, bool finalized);
+    event BatchProcessed(
+        uint256 indexed batchId,
+        uint256 btcRequested,
+        uint256 collectedAmount,
+        bool finalized
+    );
 
     event TickIdle();
     event TickDepositEthereum();
@@ -63,7 +87,10 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     event TickWithdrawPending(uint256 lockedAmount);
     event TickWithdrawEthereumFinalized(uint256 batchId);
 
-    event WithdrawingBatchFinalized(uint256 indexed batchId, uint256 collectedAmount);
+    event WithdrawingBatchFinalized(
+        uint256 indexed batchId,
+        uint256 collectedAmount
+    );
     event PausedUpdated(bool paused);
     event OperatorUpdated(address operator);
     event FeeCollectorUpdated(address feeCollector);
@@ -106,7 +133,8 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     error WaitosaurLocked();
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.core.config")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant CONFIG_STORAGE_SLOT = 0xe8041c5a119ce847809f9491390b5e4b81852379983e998195264ecb0ca5b100;
+    bytes32 private constant CONFIG_STORAGE_SLOT =
+        0xe8041c5a119ce847809f9491390b5e4b81852379983e998195264ecb0ca5b100;
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.core.batch_state")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant BATCH_STATE_STORAGE_SLOT =
         0xcd680cc7c8e435be1f7479ad5e3bda309608af714cd2b7b35d4d58c3c8569700;
@@ -114,7 +142,8 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     bytes32 private constant FINALIZED_BATCHES_STORAGE_SLOT =
         0x6ba6b86991a1f4fd0c4351857af540e99efdf5c523d2e0e4d1a5236d81710f00;
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.core.fsm_state")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant FSM_STORAGE_SLOT = 0x6d0daac8be12ff028013290dddbb8756fc5a2529ca2bd6de90f4c8bd522e4300;
+    bytes32 private constant FSM_STORAGE_SLOT =
+        0x6d0daac8be12ff028013290dddbb8756fc5a2529ca2bd6de90f4c8bd522e4300;
 
     struct BatchState {
         Batch activeBatch;
@@ -206,10 +235,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         uint256 withdrawalCost_,
         uint256 depositsCap_,
         bool capEnabled_
-    )
-        public
-        initializer
-    {
+    ) public initializer {
         __Ownable_init(owner_);
         __Ownable2Step_init();
         if (depositToken_ == address(0)) {
@@ -278,7 +304,11 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         }
     }
 
-    function _getFinalizedBatchesStorage() private pure returns (FinalizedBatchesStorage storage $) {
+    function _getFinalizedBatchesStorage()
+        private
+        pure
+        returns (FinalizedBatchesStorage storage $)
+    {
         assembly {
             $.slot := FINALIZED_BATCHES_STORAGE_SLOT
         }
@@ -289,15 +319,18 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         return uint256(IERC20Metadata(config.depositToken).decimals());
     }
 
-    function _createNewBatch(uint256 batchId) private view returns (Batch memory) {
-        return Batch({
-            batchId: batchId,
-            btcRequested: 0,
-            maxBtcBurned: 0,
-            collectedAmount: 0,
-            collectorHistoricalBalance: 0,
-            depositDecimals: _depositDecimals()
-        });
+    function _createNewBatch(
+        uint256 batchId
+    ) private view returns (Batch memory) {
+        return
+            Batch({
+                batchId: batchId,
+                btcRequested: 0,
+                maxBtcBurned: 0,
+                collectedAmount: 0,
+                collectorHistoricalBalance: 0,
+                depositDecimals: _depositDecimals()
+            });
     }
 
     function _activeBatch() private view returns (Batch storage) {
@@ -315,8 +348,11 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         return (batchState.withdrawingBatch, batchState.hasWithdrawingBatch);
     }
 
-    function finalizedBatch(uint256 batchId) public view returns (Batch memory) {
-        FinalizedBatchesStorage storage finalized = _getFinalizedBatchesStorage();
+    function finalizedBatch(
+        uint256 batchId
+    ) public view returns (Batch memory) {
+        FinalizedBatchesStorage
+            storage finalized = _getFinalizedBatchesStorage();
         Batch memory batch = finalized.batches[batchId];
         if (batch.depositDecimals == 0) {
             revert FinalizedBatchMissing(batchId);
@@ -325,7 +361,8 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     }
 
     function finalizedBatches() external view returns (Batch[] memory) {
-        FinalizedBatchesStorage storage finalized = _getFinalizedBatchesStorage();
+        FinalizedBatchesStorage
+            storage finalized = _getFinalizedBatchesStorage();
         uint256 length = finalized.finalizedBatchIds.length;
         Batch[] memory batches = new Batch[](length);
         for (uint256 i = 0; i < length; i++) {
@@ -336,7 +373,8 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     }
 
     function _addFinalizedBatch(Batch memory batch) internal {
-        FinalizedBatchesStorage storage finalized = _getFinalizedBatchesStorage();
+        FinalizedBatchesStorage
+            storage finalized = _getFinalizedBatchesStorage();
         finalized.batches[batch.batchId] = batch;
         finalized.finalizedBatchIds.push(batch.batchId);
     }
@@ -378,7 +416,9 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         emit AllowlistUpdated(newAllowlist);
     }
 
-    function setExchangeRateProvider(address newExchangeRateProvider) external onlyOwner {
+    function setExchangeRateProvider(
+        address newExchangeRateProvider
+    ) external onlyOwner {
         if (newExchangeRateProvider == address(0)) {
             revert InvalidExchangeRateReceiverAddress();
         }
@@ -387,7 +427,9 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         emit ExchangeRateProviderUpdated(newExchangeRateProvider);
     }
 
-    function setWithdrawalManager(address newWithdrawalManager) external onlyOwner {
+    function setWithdrawalManager(
+        address newWithdrawalManager
+    ) external onlyOwner {
         if (newWithdrawalManager == address(0)) {
             revert InvalidWithdrawalManagerAddress();
         }
@@ -396,7 +438,9 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         emit WithdrawalManagerUpdated(newWithdrawalManager);
     }
 
-    function setDepositForwarder(address newDepositForwarder) external onlyOwner {
+    function setDepositForwarder(
+        address newDepositForwarder
+    ) external onlyOwner {
         if (newDepositForwarder == address(0)) {
             revert InvalidDepositForwarderAddress();
         }
@@ -405,7 +449,9 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         emit DepositForwarderUpdated(newDepositForwarder);
     }
 
-    function setWaitosaurObserver(address newWaitosaurObserver) external onlyOwner {
+    function setWaitosaurObserver(
+        address newWaitosaurObserver
+    ) external onlyOwner {
         if (newWaitosaurObserver == address(0)) {
             revert InvalidWaitosaurObserverAddress();
         }
@@ -423,7 +469,10 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         emit WaitosaurHolderUpdated(newWaitosaurHolder);
     }
 
-    function setCosts(uint256 newDepositCost, uint256 newWithdrawalCost) external onlyOwner {
+    function setCosts(
+        uint256 newDepositCost,
+        uint256 newWithdrawalCost
+    ) external onlyOwner {
         if (newDepositCost >= 1e18 || newWithdrawalCost >= 1e18) {
             revert FeeTooHigh();
         }
@@ -443,7 +492,10 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     /// @notice Owner-only mint of maxBTC
     /// @param amount Amount of maxBTC to mint (in 1e8 units)
     /// @param recipient Recipient address to receive the freshly minted maxBTC
-    function mintByOwner(uint256 amount, address recipient) external onlyOwner notPaused {
+    function mintByOwner(
+        uint256 amount,
+        address recipient
+    ) external onlyOwner notPaused {
         if (recipient == address(0)) {
             revert InvalidRecipient();
         }
@@ -467,11 +519,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         uint256 amount,
         address recipient,
         uint256 minReceiveAmount
-    )
-        external
-        notPaused
-        onlyAllowlisted(recipient)
-    {
+    ) external notPaused onlyAllowlisted(recipient) {
         CoreConfig storage config = _getCoreConfig();
         if (recipient == address(0)) {
             revert InvalidRecipient();
@@ -487,7 +535,11 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             revert ExchangeRateStale();
         }
 
-        uint256 maxBtcToMint = _calculateMintAmount(amount, exchangeRate, config.depositCost);
+        uint256 maxBtcToMint = _calculateMintAmount(
+            amount,
+            exchangeRate,
+            config.depositCost
+        );
         if (maxBtcToMint == 0) {
             revert InvalidAmount();
         }
@@ -495,13 +547,20 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             revert SlippageLimitExceeded(minReceiveAmount, maxBtcToMint);
         }
 
-        SafeERC20.safeTransferFrom(IERC20(config.depositToken), msg.sender, address(this), amount);
+        SafeERC20.safeTransferFrom(
+            IERC20(config.depositToken),
+            msg.sender,
+            address(this),
+            amount
+        );
 
         MaxBTCERC20(config.maxBtcToken).mint(recipient, maxBtcToMint);
         emit Deposit(msg.sender, recipient, amount, maxBtcToMint);
     }
 
-    function withdraw(uint256 maxBtcAmount) external notPaused onlyAllowlisted(_msgSender()) {
+    function withdraw(
+        uint256 maxBtcAmount
+    ) external notPaused onlyAllowlisted(_msgSender()) {
         CoreConfig storage config = _getCoreConfig();
         if (maxBtcAmount == 0) {
             revert InvalidAmount();
@@ -510,7 +569,12 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         Batch storage batch = _activeBatch();
         batch.maxBtcBurned += maxBtcAmount;
         uint256 batchId = batch.batchId;
-        WithdrawalToken(config.withdrawalToken).mint(_msgSender(), batchId, maxBtcAmount, "");
+        WithdrawalToken(config.withdrawalToken).mint(
+            _msgSender(),
+            batchId,
+            maxBtcAmount,
+            ""
+        );
         emit Withdrawal(_msgSender(), maxBtcAmount, batchId);
     }
 
@@ -518,16 +582,28 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     /// @dev It offsets withdrawals with deposits, sends fees to the
     /// collector, and either finalizes or moves the batch to
     /// WITHDRAWING for off-chain settlement.
-    function tick() external notPaused onlyOperatorOrOwner returns (bool finalized) {
+    function tick()
+        external
+        notPaused
+        onlyOperatorOrOwner
+        returns (bool finalized)
+    {
         CoreConfig storage config = _getCoreConfig();
         ContractState state = _state();
         BatchState storage batchState = _getBatchState();
         Batch memory batch = batchState.activeBatch;
-        uint256 depositBalance = IERC20(config.depositToken).balanceOf(address(this));
+        uint256 depositBalance = IERC20(config.depositToken).balanceOf(
+            address(this)
+        );
 
         if (state == ContractState.Idle) {
             if (batch.maxBtcBurned > 0) {
-                finalized = _processWithdrawals(config, batchState, batch, depositBalance);
+                finalized = _processWithdrawals(
+                    config,
+                    batchState,
+                    batch,
+                    depositBalance
+                );
                 if (!finalized) {
                     _setState(ContractState.WithdrawJlp);
                 }
@@ -569,7 +645,10 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             if (lockedAmount > 0) {
                 batchState.withdrawingBatch.collectedAmount += lockedAmount;
                 holder.unlock();
-                MaxBTCERC20(config.maxBtcToken).burn(_msgSender(), batchState.withdrawingBatch.maxBtcBurned);
+                MaxBTCERC20(config.maxBtcToken).burn(
+                    _msgSender(),
+                    batchState.withdrawingBatch.maxBtcBurned
+                );
             }
             _setState(ContractState.WithdrawEthereum);
             emit TickWithdrawPending(lockedAmount);
@@ -579,7 +658,9 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             _finalizeWithdrawingBatch(batchState.withdrawingBatch);
             _setState(ContractState.Idle);
             finalized = true;
-            emit TickWithdrawEthereumFinalized(batchState.withdrawingBatch.batchId);
+            emit TickWithdrawEthereumFinalized(
+                batchState.withdrawingBatch.batchId
+            );
             return (finalized);
         }
     }
@@ -595,10 +676,15 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         delete batchState.withdrawingBatch;
         batchState.hasWithdrawingBatch = false;
 
-        emit WithdrawingBatchFinalized(withdrawing.batchId, withdrawing.collectedAmount);
+        emit WithdrawingBatchFinalized(
+            withdrawing.batchId,
+            withdrawing.collectedAmount
+        );
     }
 
-    function finalizeWithdrawingBatch(uint256 totalCollectedAmount) external notPaused onlyOperatorOrOwner {
+    function finalizeWithdrawingBatch(
+        uint256 totalCollectedAmount
+    ) external notPaused onlyOperatorOrOwner {
         BatchState storage batchState = _getBatchState();
         if (!batchState.hasWithdrawingBatch) {
             revert WithdrawingBatchMissing();
@@ -610,7 +696,11 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         uint256 additional = totalCollectedAmount - withdrawing.collectedAmount;
         CoreConfig storage config = _getCoreConfig();
         if (additional > 0) {
-            SafeERC20.safeTransfer(IERC20(config.depositToken), config.withdrawalManager, additional);
+            SafeERC20.safeTransfer(
+                IERC20(config.depositToken),
+                config.withdrawalManager,
+                additional
+            );
         }
         withdrawing.collectedAmount = totalCollectedAmount;
         _finalizeWithdrawingBatch(withdrawing);
@@ -628,10 +718,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         BatchState storage batchState,
         Batch memory batch,
         uint256 depositBalance
-    )
-        private
-        returns (bool finalized)
-    {
+    ) private returns (bool finalized) {
         (uint256 exchangeRate, uint256 lastUpdated) = _getExchangeRate(config);
         if (block.timestamp - lastUpdated >= config.exchangeRateStalePeriod) {
             revert ExchangeRateStale();
@@ -640,26 +727,41 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         batch.btcRequested = (batch.maxBtcBurned * exchangeRate) / 1e18;
 
         // depositBeforeFees = ceil(btcRequested / (1 - depositCost))
-        uint256 depositBeforeFees = _ceilDiv(batch.btcRequested * 1e18, 1e18 - config.depositCost);
+        uint256 depositBeforeFees = _ceilDiv(
+            batch.btcRequested * 1e18,
+            1e18 - config.depositCost
+        );
 
         // It calculates how much of the withdrawal can be offset using the deposits.
         // Compares two values: the total amount of available deposits and the calculated
         // amount of BTC withdrawals plus withdrawal costs, and takes the lesser of the two.
         // This ensures that we do not exceed the available deposits.
-        uint256 offsettingAmountFull = depositBeforeFees <= depositBalance ? depositBeforeFees : depositBalance;
+        uint256 offsettingAmountFull = depositBeforeFees <= depositBalance
+            ? depositBeforeFees
+            : depositBalance;
 
-        uint256 offsettingAfterDepositCost = (offsettingAmountFull * (1e18 - config.depositCost)) / 1e18;
-        uint256 offsettingAmount = (offsettingAfterDepositCost * (1e18 - config.withdrawalCost)) / 1e18;
+        uint256 offsettingAfterDepositCost = (offsettingAmountFull *
+            (1e18 - config.depositCost)) / 1e18;
+        uint256 offsettingAmount = (offsettingAfterDepositCost *
+            (1e18 - config.withdrawalCost)) / 1e18;
 
         uint256 offsettingCost = offsettingAmountFull - offsettingAmount;
 
         batch.collectedAmount = offsettingAmount;
 
         if (offsettingAmount > 0) {
-            SafeERC20.safeTransfer(IERC20(config.depositToken), config.withdrawalManager, offsettingAmount);
+            SafeERC20.safeTransfer(
+                IERC20(config.depositToken),
+                config.withdrawalManager,
+                offsettingAmount
+            );
         }
         if (offsettingCost > 0) {
-            SafeERC20.safeTransfer(IERC20(config.depositToken), config.feeCollector, offsettingCost);
+            SafeERC20.safeTransfer(
+                IERC20(config.depositToken),
+                config.feeCollector,
+                offsettingCost
+            );
         }
 
         if (depositBeforeFees <= depositBalance) {
@@ -675,24 +777,41 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
 
         batchState.activeBatch = _createNewBatch(batch.batchId + 1);
 
-        emit BatchProcessed(batch.batchId, batch.btcRequested, batch.collectedAmount, finalized);
+        emit BatchProcessed(
+            batch.batchId,
+            batch.btcRequested,
+            batch.collectedAmount,
+            finalized
+        );
     }
 
-    function _flushDeposits(CoreConfig storage config, uint256 depositBalance) private {
+    function _flushDeposits(
+        CoreConfig storage config,
+        uint256 depositBalance
+    ) private {
         if (depositBalance == 0) {
             return;
         }
 
         WaitosaurObserver(config.waitosaurObserver).lock(depositBalance);
 
-        SafeERC20.safeTransfer(IERC20(config.depositToken), config.depositForwarder, depositBalance);
+        SafeERC20.safeTransfer(
+            IERC20(config.depositToken),
+            config.depositForwarder,
+            depositBalance
+        );
     }
 
-    function _checkDepositCap(CoreConfig storage config, uint256 depositAmount) private view {
+    function _checkDepositCap(
+        CoreConfig storage config,
+        uint256 depositAmount
+    ) private view {
         if (!config.capEnabled) {
             return;
         }
-        (int256 aumRaw, uint8 decimals) = IExchangeRateProvider(config.exchangeRateProvider).getAum();
+        (int256 aumRaw, uint8 decimals) = IExchangeRateProvider(
+            config.exchangeRateProvider
+        ).getAum();
         if (aumRaw < 0) {
             revert DepositCapExceeded();
         }
@@ -713,11 +832,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         uint256 amount,
         uint256 exchangeRate,
         uint256 depositCost
-    )
-        private
-        pure
-        returns (uint256)
-    {
+    ) private pure returns (uint256) {
         if (exchangeRate == 0) {
             // We use InvalidDepositAmount here as a zero exchange rate makes any deposit invalid.
             revert InvalidDepositAmount();
@@ -726,7 +841,9 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         return (amountAfterFee * 1e18) / exchangeRate;
     }
 
-    function _getExchangeRate(CoreConfig storage config) private view returns (uint256, uint256) {
+    function _getExchangeRate(
+        CoreConfig storage config
+    ) private view returns (uint256, uint256) {
         return IExchangeRateProvider(config.exchangeRateProvider).getTwaer();
     }
 
@@ -737,7 +854,11 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         return a == 0 ? 0 : ((a - 1) / b) + 1;
     }
 
-    function _scaleAmount(uint256 amount, uint256 fromDecimals, uint256 toDecimals) private pure returns (uint256) {
+    function _scaleAmount(
+        uint256 amount,
+        uint256 fromDecimals,
+        uint256 toDecimals
+    ) private pure returns (uint256) {
         if (fromDecimals == toDecimals) {
             return amount;
         }
@@ -749,5 +870,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         return amount / divisor;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 }

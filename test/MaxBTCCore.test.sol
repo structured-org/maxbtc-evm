@@ -1,21 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { Test } from "forge-std/Test.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { MaxBTCCore } from "../src/MaxBTCCore.sol";
-import { MaxBTCERC20 } from "../src/MaxBTCERC20.sol";
-import { WithdrawalToken } from "../src/WithdrawalToken.sol";
-import { WaitosaurHolder } from "../src/WaitosaurHolder.sol";
-import { Allowlist } from "../src/Allowlist.sol";
-import { Receiver } from "../src/Receiver.sol";
-import { Batch } from "../src/types/CoreTypes.sol";
-import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Test} from "forge-std/Test.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {MaxBTCCore} from "../src/MaxBTCCore.sol";
+import {MaxBTCERC20} from "../src/MaxBTCERC20.sol";
+import {WithdrawalToken} from "../src/WithdrawalToken.sol";
+import {WaitosaurHolder} from "../src/WaitosaurHolder.sol";
+import {Allowlist} from "../src/Allowlist.sol";
+import {Receiver} from "../src/Receiver.sol";
+import {Batch} from "../src/types/CoreTypes.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MockERC20 is ERC20 {
     uint8 private immutable _DECIMALS;
 
-    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_
+    ) ERC20(name_, symbol_) {
         _DECIMALS = decimals_;
     }
 
@@ -78,18 +84,29 @@ contract MaxBTCCoreTest is Test {
         provider = new Receiver(address(this));
         depositToken = new MockERC20("WBTC", "WBTC", 8);
         Allowlist allowlistImpl = new Allowlist();
-        ERC1967Proxy allowlistProxy =
-            new ERC1967Proxy(address(allowlistImpl), abi.encodeCall(Allowlist.initialize, (address(this))));
+        ERC1967Proxy allowlistProxy = new ERC1967Proxy(
+            address(allowlistImpl),
+            abi.encodeCall(Allowlist.initialize, (address(this)))
+        );
         allowlist = Allowlist(address(allowlistProxy));
         waitosaurObserver = new MockWaitosaurObserver();
 
         ERC1967Proxy maxbtcProxy = new ERC1967Proxy(address(maxbtcImpl), "");
-        ERC1967Proxy withdrawalProxy = new ERC1967Proxy(address(withdrawalTokenImpl), "");
+        ERC1967Proxy withdrawalProxy = new ERC1967Proxy(
+            address(withdrawalTokenImpl),
+            ""
+        );
         ERC1967Proxy waitosaurProxy = new ERC1967Proxy(
             address(waitosaurHolderImpl),
             abi.encodeCall(
                 WaitosaurHolder.initialize,
-                (address(this), address(depositToken), OPERATOR, address(this), WITHDRAWAL_MANAGER)
+                (
+                    address(this),
+                    address(depositToken),
+                    OPERATOR,
+                    address(this),
+                    WITHDRAWAL_MANAGER
+                )
             )
         );
         waitosaurHolder = WaitosaurHolder(address(waitosaurProxy));
@@ -134,7 +151,13 @@ contract MaxBTCCoreTest is Test {
         maxbtc.updateIcs20(OPERATOR); // allow operator-driven burns during ticks
         maxbtc.setEurekaRateLimits(1e18, 1e18); // needed for ICS20 to be allowed to mint
 
-        withdrawalToken.initialize(address(this), address(core), "ipfs://test/", "Redemption", "rMAX-");
+        withdrawalToken.initialize(
+            address(this),
+            address(core),
+            "ipfs://test/",
+            "Redemption",
+            "rMAX-"
+        );
         waitosaurHolder.updateRoles(OPERATOR, address(core));
         waitosaurHolder.updateConfig(WITHDRAWAL_MANAGER);
 
@@ -153,7 +176,11 @@ contract MaxBTCCoreTest is Test {
 
         uint256 expectedMint = (amount * (1e18 - DEPOSIT_COST)) / 2e18;
         assertEq(maxbtc.balanceOf(USER), expectedMint, "minted amount");
-        assertEq(depositToken.balanceOf(address(core)), amount, "deposits held by core");
+        assertEq(
+            depositToken.balanceOf(address(core)),
+            amount,
+            "deposits held by core"
+        );
     }
 
     function testDepositFailsWhenPaused() external {
@@ -187,7 +214,9 @@ contract MaxBTCCoreTest is Test {
         depositToken.mint(USER, 1e8);
         vm.startPrank(USER);
         depositToken.approve(address(core), 1e8);
-        vm.expectRevert(abi.encodeWithSelector(MaxBTCCore.AddressNotAllowed.selector, USER));
+        vm.expectRevert(
+            abi.encodeWithSelector(MaxBTCCore.AddressNotAllowed.selector, USER)
+        );
         core.deposit(1e8, USER, 0);
         vm.stopPrank();
     }
@@ -222,7 +251,13 @@ contract MaxBTCCoreTest is Test {
         vm.startPrank(USER);
         depositToken.approve(address(core), amount);
         uint256 minted = (amount * (1e18 - DEPOSIT_COST)) / 1e18;
-        vm.expectRevert(abi.encodeWithSelector(MaxBTCCore.SlippageLimitExceeded.selector, minted + 1, minted));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MaxBTCCore.SlippageLimitExceeded.selector,
+                minted + 1,
+                minted
+            )
+        );
         core.deposit(amount, USER, minted + 1);
         vm.stopPrank();
     }
@@ -244,20 +279,37 @@ contract MaxBTCCoreTest is Test {
         bool finalized = core.tick();
         Batch memory processed = core.finalizedBatch(0);
 
-        uint256 depositBeforeFees = (processed.btcRequested * 1e18 + (1e18 - DEPOSIT_COST) - 1) / (1e18 - DEPOSIT_COST);
-        uint256 offsettingAfterDepositCost = (depositBeforeFees * (1e18 - DEPOSIT_COST)) / 1e18;
-        uint256 expectedCollected = (offsettingAfterDepositCost * (1e18 - WITHDRAWAL_COST)) / 1e18;
+        uint256 depositBeforeFees = (processed.btcRequested *
+            1e18 +
+            (1e18 - DEPOSIT_COST) -
+            1) / (1e18 - DEPOSIT_COST);
+        uint256 offsettingAfterDepositCost = (depositBeforeFees *
+            (1e18 - DEPOSIT_COST)) / 1e18;
+        uint256 expectedCollected = (offsettingAfterDepositCost *
+            (1e18 - WITHDRAWAL_COST)) / 1e18;
         uint256 expectedCost = depositBeforeFees - expectedCollected;
 
         assertTrue(finalized, "finalized");
         assertEq(processed.maxBtcBurned, burnAmount, "burned amount");
         assertEq(processed.collectedAmount, expectedCollected, "collected");
-        assertEq(depositToken.balanceOf(WITHDRAWAL_MANAGER), expectedCollected, "withdrawal manager received");
-        assertEq(depositToken.balanceOf(FEE_COLLECTOR), expectedCost, "fee collector received");
+        assertEq(
+            depositToken.balanceOf(WITHDRAWAL_MANAGER),
+            expectedCollected,
+            "withdrawal manager received"
+        );
+        assertEq(
+            depositToken.balanceOf(FEE_COLLECTOR),
+            expectedCost,
+            "fee collector received"
+        );
 
         Batch memory stored = core.finalizedBatch(processed.batchId);
         assertEq(stored.collectedAmount, expectedCollected, "finalized stored");
-        assertEq(core.activeBatch().batchId, processed.batchId + 1, "new batch");
+        assertEq(
+            core.activeBatch().batchId,
+            processed.batchId + 1,
+            "new batch"
+        );
     }
 
     function testPartialCoverageMovesToWithdrawingAndFinalizeLater() external {
@@ -280,9 +332,19 @@ contract MaxBTCCoreTest is Test {
         (Batch memory processed, bool has) = core.withdrawingBatch();
         assertTrue(has, "withdrawing batch exists");
         uint256 expectedCollected = (5e7 * (1e18 - DEPOSIT_COST)) / 1e18;
-        expectedCollected = (expectedCollected * (1e18 - WITHDRAWAL_COST)) / 1e18;
-        assertEq(processed.collectedAmount, expectedCollected, "partially covered");
-        assertEq(depositToken.balanceOf(WITHDRAWAL_MANAGER), expectedCollected, "covered portion sent");
+        expectedCollected =
+            (expectedCollected * (1e18 - WITHDRAWAL_COST)) /
+            1e18;
+        assertEq(
+            processed.collectedAmount,
+            expectedCollected,
+            "partially covered"
+        );
+        assertEq(
+            depositToken.balanceOf(WITHDRAWAL_MANAGER),
+            expectedCollected,
+            "covered portion sent"
+        );
 
         // Off-chain bridge delivers remaining 1.5 WBTC.
         uint256 targetCollected = 2e8;
@@ -293,7 +355,11 @@ contract MaxBTCCoreTest is Test {
 
         Batch memory stored = core.finalizedBatch(processed.batchId);
         assertEq(stored.collectedAmount, targetCollected, "final collected");
-        assertEq(depositToken.balanceOf(WITHDRAWAL_MANAGER), targetCollected, "withdrawal manager received rest");
+        assertEq(
+            depositToken.balanceOf(WITHDRAWAL_MANAGER),
+            targetCollected,
+            "withdrawal manager received rest"
+        );
     }
 
     function testFsmDepositCycleFlushesAndReturnsToIdle() external {
@@ -304,7 +370,11 @@ contract MaxBTCCoreTest is Test {
         vm.prank(OPERATOR);
         core.tick();
         assertEq(uint8(core.contractState()), 1, "moved to DepositEthereum");
-        assertEq(depositToken.balanceOf(DEPOSIT_FORWARDER), depositAmount, "forwarder received flush");
+        assertEq(
+            depositToken.balanceOf(DEPOSIT_FORWARDER),
+            depositAmount,
+            "forwarder received flush"
+        );
         // Simulate observer unlocking after external chain confirmation.
         waitosaurObserver.setLocked(false);
 
@@ -390,7 +460,9 @@ contract MaxBTCCoreTest is Test {
         assertEq(uint8(core.contractState()), 6, "moved to WithdrawEthereum");
         assertEq(waitosaurHolder.lockedAmount(), 0, "waitosaur unlocked");
         assertEq(
-            depositToken.balanceOf(WITHDRAWAL_MANAGER), lockedAmount, "locked funds forwarded to withdrawal manager"
+            depositToken.balanceOf(WITHDRAWAL_MANAGER),
+            lockedAmount,
+            "locked funds forwarded to withdrawal manager"
         );
 
         vm.prank(OPERATOR);
@@ -402,7 +474,9 @@ contract MaxBTCCoreTest is Test {
 
     function testWithdrawNotAllowlistedReverts() external {
         allowlist.deny(_arr(USER));
-        vm.expectRevert(abi.encodeWithSelector(MaxBTCCore.AddressNotAllowed.selector, USER));
+        vm.expectRevert(
+            abi.encodeWithSelector(MaxBTCCore.AddressNotAllowed.selector, USER)
+        );
         vm.prank(USER);
         core.withdraw(1);
     }
@@ -439,7 +513,10 @@ contract MaxBTCCoreTest is Test {
 
     function _publishRate(uint256 er) private {
         provider.publish(er, block.timestamp);
-        provider.publishAum(int256(depositToken.totalSupply()), depositToken.decimals());
+        provider.publishAum(
+            int256(depositToken.totalSupply()),
+            depositToken.decimals()
+        );
     }
 
     function _arr(address a) private pure returns (address[] memory arr) {

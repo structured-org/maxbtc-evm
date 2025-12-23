@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { Test } from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 import "../src/WaitosaurHolder.sol" as waitosaurSrc;
-import { WaitosaurBase, WaitosaurAccess } from "../src/WaitosaurBase.sol";
-import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {WaitosaurBase, WaitosaurAccess} from "../src/WaitosaurBase.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MockERC20 {
     string public name = "MockToken";
@@ -19,7 +21,8 @@ contract MockERC20 {
         return _balanceOf[user];
     }
 
-    mapping(address owner => mapping(address spender => uint256 amount)) public allowance;
+    mapping(address owner => mapping(address spender => uint256 amount))
+        public allowance;
 
     error InsufficientBalance();
     error InsufficientAllowance();
@@ -37,7 +40,11 @@ contract MockERC20 {
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool) {
         if (_balanceOf[from] < amount) revert InsufficientBalance();
         if (allowance[from][msg.sender] < amount) {
             revert InsufficientAllowance();
@@ -69,7 +76,12 @@ contract WaitosaurHolderTest is Test {
         waitosaurSrc.WaitosaurHolder logic = new waitosaurSrc.WaitosaurHolder();
         // Prepare initializer data
         bytes memory data = abi.encodeWithSelector(
-            waitosaurSrc.WaitosaurHolder.initialize.selector, owner, address(token), locker, unLocker, receiver
+            waitosaurSrc.WaitosaurHolder.initialize.selector,
+            owner,
+            address(token),
+            locker,
+            unLocker,
+            receiver
         );
         // Deploy proxy with initializer
         ERC1967Proxy proxy = new ERC1967Proxy(address(logic), data);
@@ -106,7 +118,11 @@ contract WaitosaurHolderTest is Test {
         // Burn funds from contract to simulate low balance
         token.burn(address(waitosaur), 1000 ether);
         vm.prank(unLocker);
-        vm.expectRevert(abi.encodeWithSelector(WaitosaurBase.InsufficientAssetAmount.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WaitosaurBase.InsufficientAssetAmount.selector
+            )
+        );
         waitosaur.unlock();
     }
 
@@ -118,7 +134,10 @@ contract WaitosaurHolderTest is Test {
         waitosaur.updateRoles(newLocker, newUnLocker);
         vm.prank(owner);
         waitosaur.updateConfig(newReceiver);
-        (address tokenAddr, address receiverAddr) = (waitosaur.getConfig().token, waitosaur.getConfig().receiver);
+        (address tokenAddr, address receiverAddr) = (
+            waitosaur.getConfig().token,
+            waitosaur.getConfig().receiver
+        );
         WaitosaurAccess memory roles = waitosaur.getRoles();
         assertEq(roles.locker, newLocker);
         assertEq(roles.unlocker, newUnLocker);
@@ -129,13 +148,20 @@ contract WaitosaurHolderTest is Test {
     function testNonOwnerCannotUpdateConfig() public {
         address newReceiver = address(0x12);
         vm.prank(locker);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", locker));
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "OwnableUnauthorizedAccount(address)",
+                locker
+            )
+        );
         waitosaur.updateConfig(newReceiver);
     }
 
     function testUpdateConfigZeroAddressesRevert() public {
         vm.prank(owner);
-        vm.expectRevert(waitosaurSrc.WaitosaurHolder.InvalidReceiverAddress.selector);
+        vm.expectRevert(
+            waitosaurSrc.WaitosaurHolder.InvalidReceiverAddress.selector
+        );
         waitosaur.updateConfig(address(0));
 
         vm.prank(owner);
@@ -149,14 +175,19 @@ contract WaitosaurHolderTest is Test {
         address newReceiver = address(0x22);
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(waitosaur));
-        emit WaitosaurBase.RolesUpdated(WaitosaurAccess({ locker: newLocker, unlocker: newUnLocker }));
+        emit WaitosaurBase.RolesUpdated(
+            WaitosaurAccess({locker: newLocker, unlocker: newUnLocker})
+        );
         waitosaur.updateRoles(newLocker, newUnLocker);
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(waitosaur));
-        emit waitosaurSrc.WaitosaurHolder.ConfigUpdated(waitosaurSrc.WaitosaurHolderConfig({
-                token: address(token), receiver: newReceiver
-            }));
+        emit waitosaurSrc.WaitosaurHolder.ConfigUpdated(
+            waitosaurSrc.WaitosaurHolderConfig({
+                token: address(token),
+                receiver: newReceiver
+            })
+        );
         waitosaur.updateConfig(newReceiver);
     }
 

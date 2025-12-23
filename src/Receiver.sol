@@ -8,7 +8,10 @@ contract Receiver {
     int256 private aum;
     uint8 private aumDecimals;
 
-    event PublisherUpdated(address indexed oldPublisher, address indexed newPublisher);
+    event PublisherUpdated(
+        address indexed oldPublisher,
+        address indexed newPublisher
+    );
 
     event ValuesPublished(uint256 er, uint256 ts);
     event AumPublished(int256 aum, uint8 decimals);

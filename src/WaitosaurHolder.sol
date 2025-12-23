@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { WaitosaurBase, WaitosaurState } from "./WaitosaurBase.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {WaitosaurBase, WaitosaurState} from "./WaitosaurBase.sol";
 
 struct WaitosaurHolderConfig {
     address token;
@@ -29,9 +31,14 @@ contract WaitosaurHolder is WaitosaurBase {
     // ---------------------------------------------------------------------
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.waitosaur.holder.config")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant CONFIG_STORAGE_SLOT = 0x47c6d7e4919fbb673f9a86f2f237d78da7840dcd981fb6622bf1c417e3fed700;
+    bytes32 private constant CONFIG_STORAGE_SLOT =
+        0x47c6d7e4919fbb673f9a86f2f237d78da7840dcd981fb6622bf1c417e3fed700;
 
-    function _getWaitosaurConfig() private pure returns (WaitosaurHolderConfig storage $) {
+    function _getWaitosaurConfig()
+        private
+        pure
+        returns (WaitosaurHolderConfig storage $)
+    {
         assembly {
             $.slot := CONFIG_STORAGE_SLOT
         }
@@ -48,10 +55,7 @@ contract WaitosaurHolder is WaitosaurBase {
         address locker_,
         address unlocker_,
         address receiver_
-    )
-        public
-        initializer
-    {
+    ) public initializer {
         if (token_ == address(0)) revert InvalidTokenAddress();
         if (receiver_ == address(0)) revert InvalidReceiverAddress();
 
@@ -96,5 +100,7 @@ contract WaitosaurHolder is WaitosaurBase {
         SafeERC20.safeTransfer(tokenERC20, config.receiver, state.lockedAmount);
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 }

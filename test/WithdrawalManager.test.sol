@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { Test } from "forge-std/Test.sol";
-import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Test} from "forge-std/Test.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import { WithdrawalManager, ICoreContract } from "../src/WithdrawalManager.sol";
-import { WithdrawalToken } from "../src/WithdrawalToken.sol";
-import { Batch } from "../src/types/CoreTypes.sol";
+import {WithdrawalManager, ICoreContract} from "../src/WithdrawalManager.sol";
+import {WithdrawalToken} from "../src/WithdrawalToken.sol";
+import {Batch} from "../src/types/CoreTypes.sol";
 
 /// @notice Minimal mock ERC20 WBTC implementation used for testing
 contract MockWBTC {
@@ -20,7 +22,11 @@ contract MockWBTC {
     mapping(address => mapping(address => uint256)) private _allowances;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 
     constructor(string memory name_, string memory symbol_) {
         name = name_;
@@ -55,7 +61,10 @@ contract MockWBTC {
         return true;
     }
 
-    function allowance(address owner, address spender) external view returns (uint256) {
+    function allowance(
+        address owner,
+        address spender
+    ) external view returns (uint256) {
         return _allowances[owner][spender];
     }
 
@@ -65,7 +74,11 @@ contract MockWBTC {
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool) {
         uint256 allowed = _allowances[from][msg.sender];
         require(allowed >= amount, "allowance");
 
@@ -92,7 +105,9 @@ contract MockCore is ICoreContract {
         _batches[batchId].batchId = batchId;
     }
 
-    function finalizedBatch(uint256 batchId) external view override returns (Batch memory) {
+    function finalizedBatch(
+        uint256 batchId
+    ) external view override returns (Batch memory) {
         return _batches[batchId];
     }
 }
@@ -135,18 +150,33 @@ contract WithdrawalManagerTest is Test {
         // Deploy WithdrawalToken via UUPS proxy
         WithdrawalToken tokenImpl = new WithdrawalToken();
         bytes memory tokenInitData = abi.encodeCall(
-            WithdrawalToken.initialize, (owner, address(core), "https://api.example.com/", "WithdrawalToken", "WRT")
+            WithdrawalToken.initialize,
+            (
+                owner,
+                address(core),
+                "https://api.example.com/",
+                "WithdrawalToken",
+                "WRT"
+            )
         );
 
-        ERC1967Proxy tokenProxy = new ERC1967Proxy(address(tokenImpl), tokenInitData);
+        ERC1967Proxy tokenProxy = new ERC1967Proxy(
+            address(tokenImpl),
+            tokenInitData
+        );
         token = WithdrawalToken(address(tokenProxy));
 
         // Deploy WithdrawalManager via UUPS proxy
         WithdrawalManager managerImpl = new WithdrawalManager();
-        bytes memory managerInitData =
-            abi.encodeCall(WithdrawalManager.initialize, (owner, address(core), address(wbtc), address(token)));
+        bytes memory managerInitData = abi.encodeCall(
+            WithdrawalManager.initialize,
+            (owner, address(core), address(wbtc), address(token))
+        );
 
-        ERC1967Proxy managerProxy = new ERC1967Proxy(address(managerImpl), managerInitData);
+        ERC1967Proxy managerProxy = new ERC1967Proxy(
+            address(managerImpl),
+            managerInitData
+        );
         manager = WithdrawalManager(address(managerProxy));
 
         // Fund WithdrawalManager with WBTC so it can redeem users
@@ -159,7 +189,8 @@ contract WithdrawalManagerTest is Test {
 
     function testConfigInitialized() public view {
         // Verify that config was stored correctly during initialize()
-        WithdrawalManager.WithdrawalManagerConfig memory config = manager.getConfig();
+        WithdrawalManager.WithdrawalManagerConfig memory config = manager
+            .getConfig();
         assertEq(config.coreContract, address(core));
         assertEq(config.wbtcContract, address(wbtc));
         assertEq(config.withdrawalTokenContract, address(token));
@@ -206,13 +237,19 @@ contract WithdrawalManagerTest is Test {
 
         // Redeeming under pause must revert
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalManager.ContractPaused.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(WithdrawalManager.ContractPaused.selector)
+        );
         token.safeTransferFrom(user, address(manager), BATCH_ID, 1, "");
     }
 
     function testOnERC1155ReceivedRevertsForInvalidToken() public {
         // Direct call without WithdrawalToken must revert
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalManager.InvalidWithdrawalToken.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WithdrawalManager.InvalidWithdrawalToken.selector
+            )
+        );
         manager.onERC1155Received(address(this), user, BATCH_ID, 1, "");
     }
 
@@ -224,7 +261,11 @@ contract WithdrawalManagerTest is Test {
 
         // Call from WithdrawalToken address to pass msg.sender check
         vm.prank(address(token));
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalManager.RedemptionTokenSupplyIsZero.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WithdrawalManager.RedemptionTokenSupplyIsZero.selector
+            )
+        );
 
         manager.onERC1155Received(address(this), user, emptyBatchId, 1, "");
     }
@@ -234,7 +275,11 @@ contract WithdrawalManagerTest is Test {
         uint256[] memory ids = new uint256[](BATCH_ID);
         uint256[] memory amounts = new uint256[](1);
 
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalManager.BatchSupportNotEnabled.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WithdrawalManager.BatchSupportNotEnabled.selector
+            )
+        );
 
         manager.onERC1155BatchReceived(address(this), user, ids, amounts, "");
     }
@@ -248,7 +293,8 @@ contract WithdrawalManagerTest is Test {
         vm.prank(owner);
         manager.updateConfig(newCore, newWbtc, newToken);
 
-        WithdrawalManager.WithdrawalManagerConfig memory config = manager.getConfig();
+        WithdrawalManager.WithdrawalManagerConfig memory config = manager
+            .getConfig();
         assertEq(config.coreContract, newCore);
         assertEq(config.wbtcContract, newWbtc);
         assertEq(config.withdrawalTokenContract, newToken);
@@ -256,7 +302,12 @@ contract WithdrawalManagerTest is Test {
 
     function testUpdateConfigRevertsForNonOwner() public {
         // Non-owner must not be able to update config
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", address(this)));
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "OwnableUnauthorizedAccount(address)",
+                address(this)
+            )
+        );
         manager.updateConfig(address(1), address(2), address(3));
     }
 
@@ -264,15 +315,27 @@ contract WithdrawalManagerTest is Test {
         // Zero addresses are forbidden
 
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalManager.InvalidCoreContractAddress.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WithdrawalManager.InvalidCoreContractAddress.selector
+            )
+        );
         manager.updateConfig(address(0), address(2), address(3));
 
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalManager.InvalidwBTCContractAddress.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WithdrawalManager.InvalidwBTCContractAddress.selector
+            )
+        );
         manager.updateConfig(address(1), address(0), address(3));
 
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalManager.InvalidWithdrawalTokenContractAddress.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WithdrawalManager.InvalidWithdrawalTokenContractAddress.selector
+            )
+        );
         manager.updateConfig(address(1), address(2), address(0));
     }
 
@@ -304,7 +367,8 @@ contract WithdrawalManagerTest is Test {
         assertEq(v, 2);
 
         // Storage must be preserved
-        WithdrawalManager.WithdrawalManagerConfig memory config = manager.getConfig();
+        WithdrawalManager.WithdrawalManagerConfig memory config = manager
+            .getConfig();
         assertEq(config.coreContract, address(core));
         assertEq(config.wbtcContract, address(wbtc));
         assertEq(config.withdrawalTokenContract, address(token));
@@ -314,7 +378,12 @@ contract WithdrawalManagerTest is Test {
         // Non-owner upgrade must revert
         WithdrawalManagerV2 implV2 = new WithdrawalManagerV2();
 
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", address(this)));
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "OwnableUnauthorizedAccount(address)",
+                address(this)
+            )
+        );
 
         manager.upgradeToAndCall(address(implV2), "");
     }
@@ -361,12 +430,22 @@ contract WithdrawalManagerTest is Test {
         uint256 supplyAfter = token.totalSupply(batchId);
 
         // Check balances and paidAmount according to current formula
-        assertEq(userBalanceAfter - userBalanceBefore, expectedUserBtc, "User must receive expected BTC amount");
         assertEq(
-            managerBalanceBefore - managerBalanceAfter, expectedUserBtc, "Manager must pay out expected BTC amount"
+            userBalanceAfter - userBalanceBefore,
+            expectedUserBtc,
+            "User must receive expected BTC amount"
+        );
+        assertEq(
+            managerBalanceBefore - managerBalanceAfter,
+            expectedUserBtc,
+            "Manager must pay out expected BTC amount"
         );
         assertEq(paidAfter, expectedPaidAfter, "paidAmount must match formula");
-        assertEq(supplyAfter, supplyBefore - value, "token supply must decrease by redeemed amount");
+        assertEq(
+            supplyAfter,
+            supplyBefore - value,
+            "token supply must decrease by redeemed amount"
+        );
     }
 
     function testMultiUserSequentialRedemption() public {
@@ -408,13 +487,21 @@ contract WithdrawalManagerTest is Test {
             uint256 userBalanceAfter = wbtc.balanceOf(userA);
             uint256 paidAfter = manager.getPaidAmount(batchId);
 
-            assertEq(userBalanceAfter - userBalanceBefore, expectedUserBtc, "User A must receive expected BTC amount");
+            assertEq(
+                userBalanceAfter - userBalanceBefore,
+                expectedUserBtc,
+                "User A must receive expected BTC amount"
+            );
             assertEq(
                 managerBalanceBefore - managerBalanceAfter,
                 expectedUserBtc,
                 "Manager must pay out expected BTC amount to A"
             );
-            assertEq(paidAfter, expectedPaidAfter, "paidAmount must match formula after A");
+            assertEq(
+                paidAfter,
+                expectedPaidAfter,
+                "paidAmount must match formula after A"
+            );
         }
 
         // Second redemption: userB redeems 3
@@ -437,13 +524,21 @@ contract WithdrawalManagerTest is Test {
             uint256 userBalanceAfter = wbtc.balanceOf(userB);
             uint256 paidAfter = manager.getPaidAmount(batchId);
 
-            assertEq(userBalanceAfter - userBalanceBefore, expectedUserBtc, "User B must receive expected BTC amount");
+            assertEq(
+                userBalanceAfter - userBalanceBefore,
+                expectedUserBtc,
+                "User B must receive expected BTC amount"
+            );
             assertEq(
                 managerBalanceBefore - managerBalanceAfter,
                 expectedUserBtc,
                 "Manager must pay out expected BTC amount to B"
             );
-            assertEq(paidAfter, expectedPaidAfter, "paidAmount must match formula after B");
+            assertEq(
+                paidAfter,
+                expectedPaidAfter,
+                "paidAmount must match formula after B"
+            );
         }
     }
 
@@ -482,13 +577,25 @@ contract WithdrawalManagerTest is Test {
         uint256 supplyAfter = token.totalSupply(batchId);
 
         assertEq(userBalanceAfter, expectedUserBtc, "User should receive BTC");
-        assertEq(managerBalanceAfter, managerBalanceBefore - expectedUserBtc, "Manager must pay BTC");
+        assertEq(
+            managerBalanceAfter,
+            managerBalanceBefore - expectedUserBtc,
+            "Manager must pay BTC"
+        );
 
         // Token supply must decrease by burned value
-        assertEq(supplyAfter, supplyBefore - value, "Token supply must decrease by value");
+        assertEq(
+            supplyAfter,
+            supplyBefore - value,
+            "Token supply must decrease by value"
+        );
 
         // paidAmount must not change (no BTC actually distributed)
-        assertEq(paidAfter, expectedPaidAfter, "paidAmount must remain unchanged");
+        assertEq(
+            paidAfter,
+            expectedPaidAfter,
+            "paidAmount must remain unchanged"
+        );
     }
 
     function testUpgradeDoesNotCorruptPaidAmountOrConfig() public {
@@ -512,7 +619,8 @@ contract WithdrawalManagerTest is Test {
         token.safeTransferFrom(someUser, address(manager), batchId, value, "");
 
         uint256 paidBeforeUpgrade = manager.getPaidAmount(batchId);
-        WithdrawalManager.WithdrawalManagerConfig memory configBefore = manager.getConfig();
+        WithdrawalManager.WithdrawalManagerConfig memory configBefore = manager
+            .getConfig();
 
         // Upgrade to V2
         WithdrawalManagerV2 implV2 = new WithdrawalManagerV2();
@@ -522,11 +630,24 @@ contract WithdrawalManagerTest is Test {
 
         // After upgrade: paidAmount and config must be preserved
         uint256 paidAfterUpgrade = manager.getPaidAmount(batchId);
-        WithdrawalManager.WithdrawalManagerConfig memory configAfter = manager.getConfig();
+        WithdrawalManager.WithdrawalManagerConfig memory configAfter = manager
+            .getConfig();
 
-        assertEq(paidAfterUpgrade, paidBeforeUpgrade, "paidAmount must be preserved across upgrade");
-        assertEq(configAfter.coreContract, configBefore.coreContract, "coreContract must be preserved");
-        assertEq(configAfter.wbtcContract, configBefore.wbtcContract, "wbtcContract must be preserved");
+        assertEq(
+            paidAfterUpgrade,
+            paidBeforeUpgrade,
+            "paidAmount must be preserved across upgrade"
+        );
+        assertEq(
+            configAfter.coreContract,
+            configBefore.coreContract,
+            "coreContract must be preserved"
+        );
+        assertEq(
+            configAfter.wbtcContract,
+            configBefore.wbtcContract,
+            "wbtcContract must be preserved"
+        );
         assertEq(
             configAfter.withdrawalTokenContract,
             configBefore.withdrawalTokenContract,
@@ -536,6 +657,10 @@ contract WithdrawalManagerTest is Test {
         // New storage variable in V2 must work without corrupting existing storage
         WithdrawalManagerV2(address(manager)).setNewVar(123);
         uint256 newVarValue = WithdrawalManagerV2(address(manager)).newVar();
-        assertEq(newVarValue, 123, "newVar must be set correctly without storage collision");
+        assertEq(
+            newVarValue,
+            123,
+            "newVar must be set correctly without storage collision"
+        );
     }
 }
