@@ -245,6 +245,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         // User withdraws 1 maxBTC
         uint256 burnAmount = 1e8;
         vm.prank(USER);
+        maxbtc.approve(address(core), burnAmount);
+        vm.prank(USER);
         core.withdraw(burnAmount);
 
         // Operator processes batch; fully covered by deposits so it finalizes immediately.
@@ -334,8 +336,6 @@ contract MaxBTCCoreIntegrationTest is Test {
         maxbtc.approve(address(core), type(uint256).max);
         core.withdraw(2e8);
         vm.stopPrank();
-        vm.prank(USER);
-        assertTrue(maxbtc.transfer(OPERATOR, 2e8));
 
         // Idle -> WithdrawJlp
         vm.prank(OPERATOR);
@@ -483,6 +483,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.startPrank(USER);
         wbtc.approve(address(core), depositAmount);
         core.deposit(depositAmount, USER, 0);
+        maxbtc.approve(address(core), 5e7);
         core.withdraw(5e7);
         vm.stopPrank();
         vm.prank(OPERATOR);
@@ -528,6 +529,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.startPrank(USER);
         wbtc.approve(address(core), 2e8);
         core.deposit(2e8, USER, 0);
+        maxbtc.approve(address(core), maxbtc.balanceOf(USER));
         core.withdraw(5e7);
         vm.stopPrank();
         vm.prank(OPERATOR);
@@ -576,6 +578,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         core.mintByOwner(1e8, USER);
         assertEq(maxbtc.balanceOf(USER), 1e8, "owner mint delivered");
         vm.prank(USER);
+        maxbtc.approve(address(core), 1e8);
+        vm.prank(USER);
         core.withdraw(1e8);
         vm.prank(OPERATOR);
         core.tick(); // creates withdrawing batch
@@ -595,6 +599,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.prank(OWNER);
         core.mintByOwner(1e8, USER);
         vm.prank(USER);
+        maxbtc.approve(address(core), 1e8);
+        vm.prank(USER);
         core.withdraw(1e8);
         // Provide partial deposits so collectedAmount > 0
         wbtc.mint(address(core), 1e7);
@@ -611,6 +617,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.prank(OWNER);
         core.mintByOwner(1e8, USER);
         assertEq(maxbtc.balanceOf(USER), 1e8, "owner mint delivered");
+        vm.prank(USER);
+        maxbtc.approve(address(core), 1e8);
         vm.prank(USER);
         core.withdraw(1e8);
         vm.prank(OPERATOR);
@@ -684,6 +692,8 @@ contract MaxBTCCoreIntegrationTest is Test {
 
         // Re-allow and withdraw works
         allowlist.allow(_arr(USER));
+        vm.prank(USER);
+        maxbtc.approve(address(core), 5e7);
         vm.prank(USER);
         core.withdraw(5e7);
         vm.prank(OPERATOR);
@@ -814,6 +824,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         core.mintByOwner(1e8, USER);
         assertEq(maxbtc.balanceOf(USER), 1e8, "owner mint delivered");
         vm.prank(USER);
+        maxbtc.approve(address(core), 1e8);
+        vm.prank(USER);
         core.withdraw(1e8);
         vm.prank(OPERATOR);
         core.tick(); // Idle -> WithdrawJlp
@@ -844,9 +856,11 @@ contract MaxBTCCoreIntegrationTest is Test {
 
         // Both withdraw
         vm.startPrank(user1);
+        maxbtc.approve(address(core), 5e7);
         core.withdraw(5e7);
         vm.stopPrank();
         vm.startPrank(user2);
+        maxbtc.approve(address(core), 5e7);
         core.withdraw(5e7);
         vm.stopPrank();
 
