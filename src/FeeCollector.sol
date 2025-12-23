@@ -39,6 +39,7 @@ contract FeeCollector is
     uint256 private constant ONE = 1e18;
     uint256 private constant MIN_COLLECTION_PERIOD_SECONDS = 60 * 60; // one hour
     uint256 private constant MAX_COLLECTION_PERIOD_SECONDS = 60 * 60 * 24 * 30; // one month
+    uint256 private constant MAX_STALENESS_THRESHOLD_SECONDS = 60 * 60 * 24 * 7; // one week
 
     struct Config {
         address coreContract;
@@ -71,6 +72,7 @@ contract FeeCollector is
     error InvalidZeroAmount();
     error InvalidErReceiverAddress();
     error InvalidCollectionPeriodSeconds();
+    error InvalidStalenessThreshold();
     error StaleExchangeRate(
         uint256 dataTimestamp,
         uint256 currentTimestamp,
@@ -145,6 +147,12 @@ contract FeeCollector is
         config.feeApyReductionPercentage = feeApyReductionPercentage_;
         config.collectionPeriodSeconds = collectionPeriodSeconds_;
         config.feeToken = IERC20(feeToken_);
+        if (
+            stalenessThreshold_ == 0 ||
+            stalenessThreshold_ > MAX_STALENESS_THRESHOLD_SECONDS
+        ) {
+            revert InvalidStalenessThreshold();
+        }
         config.stalenessThreshold = stalenessThreshold_;
 
         (uint256 initialRate, uint256 initialTimestamp) = IReceiver(erReceiver_)
@@ -242,6 +250,12 @@ contract FeeCollector is
             newCollectionPeriodSeconds > MAX_COLLECTION_PERIOD_SECONDS
         ) {
             revert InvalidCollectionPeriodSeconds();
+        }
+        if (
+            newStalenessThreshold == 0 ||
+            newStalenessThreshold > MAX_STALENESS_THRESHOLD_SECONDS
+        ) {
+            revert InvalidStalenessThreshold();
         }
 
         Config storage config = _getConfig();
