@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { Test } from "forge-std/Test.sol";
-import { WaitosaurBase, WaitosaurState, WaitosaurAccess } from "../src/WaitosaurBase.sol";
+import {Test} from "forge-std/Test.sol";
+import {
+    WaitosaurBase,
+    WaitosaurState,
+    WaitosaurAccess
+} from "../src/WaitosaurBase.sol";
 
 contract Waitosaur is WaitosaurBase {
     event UnlockCalled(uint256 amount);
 
-    function initialize(address owner_, address locker_, address unlocker_) external initializer {
+    function initialize(
+        address owner_,
+        address locker_,
+        address unlocker_
+    ) external initializer {
         __WaitosaurBase_init(owner_, locker_, unlocker_);
     }
 
@@ -16,7 +24,16 @@ contract Waitosaur is WaitosaurBase {
         emit UnlockCalled(state.lockedAmount);
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner { }
+    function _getInitialOracleBalance()
+        internal
+        view
+        override
+        returns (uint256)
+    {
+        return 0;
+    }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 }
 
 contract WaitosaurBaseTest is Test {
@@ -108,7 +125,9 @@ contract WaitosaurBaseTest is Test {
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(waitosaur));
-        emit WaitosaurBase.RolesUpdated(WaitosaurAccess({ locker: newLocker, unlocker: newUnlocker }));
+        emit WaitosaurBase.RolesUpdated(
+            WaitosaurAccess({locker: newLocker, unlocker: newUnlocker})
+        );
         waitosaur.updateRoles(newLocker, newUnlocker);
 
         WaitosaurAccess memory roles = waitosaur.getRoles();
@@ -124,7 +143,12 @@ contract WaitosaurBaseTest is Test {
 
     function testUpdateRolesOnlyOwner() public {
         vm.prank(other);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", other));
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "OwnableUnauthorizedAccount(address)",
+                other
+            )
+        );
         waitosaur.updateRoles(address(0xAA), address(0xBB));
     }
 

@@ -95,7 +95,7 @@ contract WaitosaurHolder is WaitosaurBase {
     function _getInitialOracleBalance()
         internal
         view
-        override
+        override(WaitosaurBase)
         returns (uint256)
     {
         WaitosaurHolderConfig storage config = _getWaitosaurConfig();
