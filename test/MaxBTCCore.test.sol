@@ -290,7 +290,7 @@ contract MaxBTCCoreTest is Test {
         uint256 expectedCost = depositBeforeFees - expectedCollected;
 
         assertTrue(finalized, "finalized");
-        assertEq(processed.maxBtcBurned, burnAmount, "burned amount");
+        assertEq(processed.maxBtcToBurn, burnAmount, "burned amount");
         assertEq(processed.collectedAmount, expectedCollected, "collected");
         assertEq(
             depositToken.balanceOf(WITHDRAWAL_MANAGER),
