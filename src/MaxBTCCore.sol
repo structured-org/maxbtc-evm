@@ -247,6 +247,7 @@ contract MaxBTCCore is
     ) public initializer {
         __Ownable_init(owner_);
         __Ownable2Step_init();
+        __ReentrancyGuard_init();
         if (depositToken_ == address(0)) {
             revert InvalidDepositTokenAddress();
         }
