@@ -128,6 +128,7 @@ contract FeeCollector is
         __Ownable_init(owner_);
         __Ownable2Step_init();
         __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
 
         Config storage config = _getConfig();
         config.coreContract = coreContract_;
