@@ -150,6 +150,28 @@ contract WaitosaurObserverTest is Test {
         fresh.initialize(owner, locker, unlocker, address(oracle), "", 3600);
     }
 
+    function testInitializeZeroStalenessReverts() public {
+        WaitosaurObserver fresh = _deployUninitializedProxy();
+        vm.prank(owner);
+        vm.expectRevert(WaitosaurObserver.InvalidStalenessThreshold.selector);
+        fresh.initialize(owner, locker, unlocker, address(oracle), asset, 0);
+    }
+
+    function testInitializeTooLargeStalenessReverts() public {
+        WaitosaurObserver fresh = _deployUninitializedProxy();
+        vm.prank(owner);
+        vm.expectRevert(WaitosaurObserver.InvalidStalenessThreshold.selector);
+        // use a very large value to exceed any reasonable MAX_STALENESS_THRESHOLD
+        fresh.initialize(
+            owner,
+            locker,
+            unlocker,
+            address(oracle),
+            asset,
+            type(uint256).max
+        );
+    }
+
     function testInitializeTwiceReverts() public {
         WaitosaurObserver fresh = _deployUninitializedProxy();
         vm.prank(owner);
@@ -398,6 +420,13 @@ contract WaitosaurObserverTest is Test {
             WaitosaurObserver.ConfigCantBeUpdatedWhenLocked.selector
         );
         observer.updateConfig(address(0x12), "ETH", 0);
+    }
+
+    function testUpdateConfigInvalidStalenessReverts() public {
+        vm.prank(owner);
+        vm.expectRevert(WaitosaurObserver.InvalidStalenessThreshold.selector);
+        // supply an absurdly large threshold to trigger the "too large" branch
+        observer.updateConfig(address(0), "", type(uint256).max);
     }
 
     // -------------------------------------------------------------

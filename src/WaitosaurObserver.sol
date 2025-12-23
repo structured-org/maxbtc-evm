@@ -26,6 +26,7 @@ contract WaitosaurObserver is WaitosaurBase {
     error InvalidOracleAddress();
     error InvalidAsset();
     error ConfigCantBeUpdatedWhenLocked();
+    error InvalidStalenessThreshold();
     error StaleOracleData(
         uint256 dataTimestamp,
         uint256 currentTimestamp,
@@ -37,6 +38,9 @@ contract WaitosaurObserver is WaitosaurBase {
     // ---------------------------------------------------------------------
 
     event ConfigUpdated(WaitosaurObserverConfig config);
+
+    // Maximum allowed staleness threshold default (one week)
+    uint256 private constant MAX_STALENESS_THRESHOLD = 60 * 60 * 24 * 7;
 
     // ---------------------------------------------------------------------
     // Slots
@@ -76,6 +80,12 @@ contract WaitosaurObserver is WaitosaurBase {
         WaitosaurObserverConfig storage config = _config();
         config.oracle = oracle_;
         config.asset = asset_;
+        if (
+            stalenessThreshold_ == 0 ||
+            stalenessThreshold_ > MAX_STALENESS_THRESHOLD
+        ) {
+            revert InvalidStalenessThreshold();
+        }
         config.stalenessThreshold = stalenessThreshold_;
 
         // Verify initial oracle data is not stale
@@ -111,6 +121,9 @@ contract WaitosaurObserver is WaitosaurBase {
             config.asset = newAsset;
         }
         if (newStalenessThreshold != 0) {
+            if (newStalenessThreshold > MAX_STALENESS_THRESHOLD) {
+                revert InvalidStalenessThreshold();
+            }
             config.stalenessThreshold = newStalenessThreshold;
         }
 
