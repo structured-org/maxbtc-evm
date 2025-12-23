@@ -272,6 +272,7 @@ contract MaxBTCCoreTest is Test {
         core.deposit(depositAmount, USER, 0);
 
         uint256 burnAmount = 5e7; // 0.5 maxBTC
+        maxbtc.approve(address(core), burnAmount);
         core.withdraw(burnAmount);
         vm.stopPrank();
 
@@ -447,9 +448,6 @@ contract MaxBTCCoreTest is Test {
         maxbtc.approve(address(core), type(uint256).max);
         vm.prank(USER);
         core.withdraw(1e8);
-        vm.prank(USER);
-        assertTrue(maxbtc.transfer(OPERATOR, 1e8));
-
         vm.prank(OPERATOR);
         core.tick(); // Idle -> WithdrawJlp
         vm.prank(OPERATOR);

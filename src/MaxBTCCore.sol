@@ -569,6 +569,13 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         Batch storage batch = _activeBatch();
         batch.maxBtcToBurn += maxBtcAmount;
         uint256 batchId = batch.batchId;
+        //transfer maxBTC from the user to this contract
+        MaxBTCERC20(config.maxBtcToken).transferFrom(
+            _msgSender(),
+            address(this),
+            maxBtcAmount
+        );
+        //mint a withdrawal token to the user representing their claim
         WithdrawalToken(config.withdrawalToken).mint(
             _msgSender(),
             batchId,
@@ -646,7 +653,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
                 batchState.withdrawingBatch.collectedAmount += lockedAmount;
                 holder.unlock();
                 MaxBTCERC20(config.maxBtcToken).burn(
-                    _msgSender(),
+                    address(this),
                     batchState.withdrawingBatch.maxBtcToBurn
                 );
             }
