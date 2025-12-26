@@ -2,10 +2,20 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import {WaitosaurObserver, WaitosaurObserverConfig, IAumOracle} from "../src/WaitosaurObserver.sol";
-import {WaitosaurBase, WaitosaurState, WaitosaurAccess} from "../src/WaitosaurBase.sol";
+import {
+    WaitosaurObserver,
+    WaitosaurObserverConfig,
+    IAumOracle
+} from "../src/WaitosaurObserver.sol";
+import {
+    WaitosaurBase,
+    WaitosaurState,
+    WaitosaurAccess
+} from "../src/WaitosaurBase.sol";
 
 /// @notice Simple mock oracle returning a preset balance
 contract MockAumOracle is IAumOracle {
@@ -127,7 +137,7 @@ contract WaitosaurObserverTest is Test {
     // -------------------------------------------------------------
 
     function testLockByLocker() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -172,7 +182,7 @@ contract WaitosaurObserverTest is Test {
     // -------------------------------------------------------------
 
     function testUnlockSuccess() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -187,7 +197,7 @@ contract WaitosaurObserverTest is Test {
     }
 
     function testUnlockByOwnerAllowed() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -201,7 +211,7 @@ contract WaitosaurObserverTest is Test {
     }
 
     function testUnlockInsufficientBalanceReverts() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);
@@ -220,7 +230,7 @@ contract WaitosaurObserverTest is Test {
     }
 
     function testUnlockUnauthorizedReverts() public {
-        uint256 amount = 1_000e18;
+        uint256 amount = 1000e18;
 
         vm.prank(locker);
         observer.lock(amount);

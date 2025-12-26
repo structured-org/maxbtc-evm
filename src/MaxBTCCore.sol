@@ -1,12 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    IERC20Metadata
+} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {MaxBTCERC20} from "./MaxBTCERC20.sol";
 import {WithdrawalToken} from "./WithdrawalToken.sol";
 import {WaitosaurHolder} from "./WaitosaurHolder.sol";
@@ -58,7 +68,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
 
     event Withdrawal(
         address indexed withdrawer,
-        uint256 maxBtcBurned,
+        uint256 maxBtcToBurn,
         uint256 batchId
     );
 
@@ -316,7 +326,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             Batch({
                 batchId: batchId,
                 btcRequested: 0,
-                maxBtcBurned: 0,
+                maxBtcToBurn: 0,
                 collectedAmount: 0,
                 collectorHistoricalBalance: 0,
                 depositDecimals: _depositDecimals()
@@ -557,9 +567,15 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         }
 
         Batch storage batch = _activeBatch();
-        batch.maxBtcBurned += maxBtcAmount;
-        MaxBTCERC20(config.maxBtcToken).burn(_msgSender(), maxBtcAmount);
+        batch.maxBtcToBurn += maxBtcAmount;
         uint256 batchId = batch.batchId;
+        //transfer maxBTC from the user to this contract
+        MaxBTCERC20(config.maxBtcToken).transferFrom(
+            _msgSender(),
+            address(this),
+            maxBtcAmount
+        );
+        //mint a withdrawal token to the user representing their claim
         WithdrawalToken(config.withdrawalToken).mint(
             _msgSender(),
             batchId,
@@ -588,7 +604,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
         );
 
         if (state == ContractState.Idle) {
-            if (batch.maxBtcBurned > 0) {
+            if (batch.maxBtcToBurn > 0) {
                 finalized = _processWithdrawals(
                     config,
                     batchState,
@@ -636,6 +652,10 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             if (lockedAmount > 0) {
                 batchState.withdrawingBatch.collectedAmount += lockedAmount;
                 holder.unlock();
+                MaxBTCERC20(config.maxBtcToken).burn(
+                    address(this),
+                    batchState.withdrawingBatch.maxBtcToBurn
+                );
             }
             _setState(ContractState.WithdrawEthereum);
             emit TickWithdrawPending(lockedAmount);
@@ -711,7 +731,7 @@ contract MaxBTCCore is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
             revert ExchangeRateStale();
         }
 
-        batch.btcRequested = (batch.maxBtcBurned * exchangeRate) / 1e18;
+        batch.btcRequested = (batch.maxBtcToBurn * exchangeRate) / 1e18;
 
         // depositBeforeFees = ceil(btcRequested / (1 - depositCost))
         uint256 depositBeforeFees = _ceilDiv(

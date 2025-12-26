@@ -3,8 +3,12 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MaxBTCCore} from "../src/MaxBTCCore.sol";
 import {MaxBTCERC20} from "../src/MaxBTCERC20.sol";
@@ -177,12 +181,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         waitosaurHolder.updateConfig(address(manager));
 
         // Now initialize dependent contracts with the finalized core address.
-        maxbtc.initialize(
-            address(this),
-            address(this),
-            "maxBTC",
-            "maxBTC"
-        );
+        maxbtc.initialize(address(this), address(this), "maxBTC", "maxBTC");
         maxbtc.initializeV2(address(core));
         withdrawalToken.initialize(
             address(this),
@@ -207,8 +206,8 @@ contract MaxBTCCoreIntegrationTest is Test {
             address(maxbtc)
         );
 
-        // address(this) plays role of ics20 for maxBTC ERC20 contract, hence
-        // it will need some rate limits allowance to pass these tests
+        // Operator doubles as ICS20 in tests so tick-triggered burns are authorized.
+        maxbtc.updateIcs20(OPERATOR);
         maxbtc.setEurekaRateLimits(1e18, 1e18);
 
         // Manager needs to know core for finalized batch lookups
@@ -236,6 +235,8 @@ contract MaxBTCCoreIntegrationTest is Test {
 
         // User withdraws 1 maxBTC
         uint256 burnAmount = 1e8;
+        vm.prank(USER);
+        maxbtc.approve(address(core), burnAmount);
         vm.prank(USER);
         core.withdraw(burnAmount);
 
@@ -315,6 +316,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         provider.publishAum(0, wbtc.decimals());
 
         // Mint some maxBTC to user
+        vm.prank(address(core));
         maxbtc.mint(USER, 2e8);
         // Provide partial deposits to core
         wbtc.mint(address(core), 5e7);
@@ -469,6 +471,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.startPrank(USER);
         wbtc.approve(address(core), depositAmount);
         core.deposit(depositAmount, USER, 0);
+        maxbtc.approve(address(core), 5e7);
         core.withdraw(5e7);
         vm.stopPrank();
         vm.prank(OPERATOR);
@@ -514,6 +517,7 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.startPrank(USER);
         wbtc.approve(address(core), 2e8);
         core.deposit(2e8, USER, 0);
+        maxbtc.approve(address(core), maxbtc.balanceOf(USER));
         core.withdraw(5e7);
         vm.stopPrank();
         vm.prank(OPERATOR);
@@ -560,6 +564,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         core.mintByOwner(1e8, USER);
         assertEq(maxbtc.balanceOf(USER), 1e8, "owner mint delivered");
         vm.prank(USER);
+        maxbtc.approve(address(core), 1e8);
+        vm.prank(USER);
         core.withdraw(1e8);
         vm.prank(OPERATOR);
         core.tick(); // creates withdrawing batch
@@ -579,6 +585,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.prank(OWNER);
         core.mintByOwner(1e8, USER);
         vm.prank(USER);
+        maxbtc.approve(address(core), 1e8);
+        vm.prank(USER);
         core.withdraw(1e8);
         // Provide partial deposits so collectedAmount > 0
         wbtc.mint(address(core), 1e7);
@@ -595,6 +603,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.prank(OWNER);
         core.mintByOwner(1e8, USER);
         assertEq(maxbtc.balanceOf(USER), 1e8, "owner mint delivered");
+        vm.prank(USER);
+        maxbtc.approve(address(core), 1e8);
         vm.prank(USER);
         core.withdraw(1e8);
         vm.prank(OPERATOR);
@@ -666,6 +676,8 @@ contract MaxBTCCoreIntegrationTest is Test {
 
         // Re-allow and withdraw works
         allowlist.allow(_arr(USER));
+        vm.prank(USER);
+        maxbtc.approve(address(core), 5e7);
         vm.prank(USER);
         core.withdraw(5e7);
         vm.prank(OPERATOR);
@@ -794,6 +806,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         core.mintByOwner(1e8, USER);
         assertEq(maxbtc.balanceOf(USER), 1e8, "owner mint delivered");
         vm.prank(USER);
+        maxbtc.approve(address(core), 1e8);
+        vm.prank(USER);
         core.withdraw(1e8);
         vm.prank(OPERATOR);
         core.tick(); // Idle -> WithdrawJlp
@@ -824,9 +838,11 @@ contract MaxBTCCoreIntegrationTest is Test {
 
         // Both withdraw
         vm.startPrank(user1);
+        maxbtc.approve(address(core), 5e7);
         core.withdraw(5e7);
         vm.stopPrank();
         vm.startPrank(user2);
+        maxbtc.approve(address(core), 5e7);
         core.withdraw(5e7);
         vm.stopPrank();
 

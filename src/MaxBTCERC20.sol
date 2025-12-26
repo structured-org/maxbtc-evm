@@ -3,9 +3,15 @@
 pragma solidity ^0.8.28;
 
 import {IMintableAndBurnable} from "./IMintableAndBurnable.sol";
-import {ERC20Upgradeable} from "@openzeppelin-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {UUPSUpgradeable} from "@openzeppelin-contracts/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    ERC20Upgradeable
+} from "@openzeppelin-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin-contracts/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
 contract MaxBTCERC20 is
@@ -25,7 +31,11 @@ contract MaxBTCERC20 is
 
     event CoreUpdated(address updater, address core);
     event Ics20Updated(address updater, address ics20);
-    event EurekaRateLimitsUpdated(address updater, uint256 inbound, uint256 outbound);
+    event EurekaRateLimitsUpdated(
+        address updater,
+        uint256 inbound,
+        uint256 outbound
+    );
 
     struct EurekaRateLimits {
         uint256 inbound;
@@ -38,13 +48,18 @@ contract MaxBTCERC20 is
 
     /// @notice ERC-7201 slot for the ICS20 contract address
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.erc20.ics20")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant ICS20_STORAGE_SLOT = 0xaa9b9403d129a09996409713bb21f8632c135ae1789678b7128d16411b23e500;
-    
+    bytes32 private constant ICS20_STORAGE_SLOT =
+        0xaa9b9403d129a09996409713bb21f8632c135ae1789678b7128d16411b23e500;
+
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.erc20.eureka_rate_limits")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant EUREKA_RATE_LIMITS_STORAGE_SLOT =
         0x0c0a639720c50dc80b2345d9f91f51f558d5705b1c2adac963da80931ff78500;
 
-    function _getEurekaRateLimits() private pure returns (EurekaRateLimits storage $) {
+    function _getEurekaRateLimits()
+        private
+        pure
+        returns (EurekaRateLimits storage $)
+    {
         assembly {
             $.slot := EUREKA_RATE_LIMITS_STORAGE_SLOT
         }
@@ -100,7 +115,11 @@ contract MaxBTCERC20 is
     /// @notice Returns Eureka rate limits
     /// @return inbound Mint rate limit
     /// @return outbound Burn rate limit
-    function eurekaRateLimits() public view returns (uint256 inbound, uint256 outbound) {
+    function eurekaRateLimits()
+        public
+        view
+        returns (uint256 inbound, uint256 outbound)
+    {
         EurekaRateLimits storage rateLimits = _getEurekaRateLimits();
         return (rateLimits.inbound, rateLimits.outbound);
     }
@@ -154,7 +173,10 @@ contract MaxBTCERC20 is
     /// @notice Allows token owner to set Eureka rate limits
     /// @param inbound Mint rate limit
     /// @param outbound Burn rate limit
-    function setEurekaRateLimits(uint256 inbound, uint256 outbound) external onlyOwner {
+    function setEurekaRateLimits(
+        uint256 inbound,
+        uint256 outbound
+    ) external onlyOwner {
         EurekaRateLimits storage rateLimits = _getEurekaRateLimits();
         rateLimits.inbound = inbound;
         rateLimits.outbound = outbound;
