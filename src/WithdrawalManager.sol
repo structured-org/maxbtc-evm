@@ -86,6 +86,7 @@ contract WithdrawalManager is
         if (_wbtcContract == address(0)) revert InvalidwBTCContractAddress();
         if (_withdrawalTokenContract == address(0)) {
             revert InvalidWithdrawalTokenContractAddress();
+        }
         if (_allowlist == address(0)) revert InvalidAllowlistContractAddress();
         __Ownable_init(owner_);
         __Ownable2Step_init();
