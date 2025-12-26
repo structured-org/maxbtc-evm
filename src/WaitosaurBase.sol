@@ -73,7 +73,7 @@ abstract contract WaitosaurBase is
         }
     }
 
-    function getRoles() public pure returns (WaitosaurAccess memory) {
+    function getRoles() external pure returns (WaitosaurAccess memory) {
         WaitosaurAccess storage r = _getRoles();
         return r;
     }
@@ -124,7 +124,7 @@ abstract contract WaitosaurBase is
     }
 
     function lock(uint256 amount) public {
-        WaitosaurAccess storage roles = _getRoles();
+        WaitosaurAccess memory roles = _getRoles();
         if (_msgSender() != roles.locker && _msgSender() != owner()) {
             revert Unauthorized();
         }
@@ -133,7 +133,7 @@ abstract contract WaitosaurBase is
 
     /// @dev Only unlocker or owner is allowed.
     function unlock() external {
-        WaitosaurAccess storage roles = _getRoles();
+        WaitosaurAccess memory roles = _getRoles();
         if (_msgSender() != roles.unlocker && _msgSender() != owner())
             revert Unauthorized();
         WaitosaurState storage state = _getState();
