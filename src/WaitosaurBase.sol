@@ -14,6 +14,7 @@ import {
 struct WaitosaurState {
     uint256 lockedAmount;
     uint256 lastLocked;
+    uint256 initialOracleBalance;
 }
 
 struct WaitosaurAccess {
@@ -36,6 +37,7 @@ abstract contract WaitosaurBase is
     error InvalidRolesAddresses();
     error InsufficientAssetAmount();
     error Unauthorized();
+    error OracleBalanceIncorrect();
 
     // ---------------------------------------------------------------------
     // Events
@@ -112,30 +114,44 @@ abstract contract WaitosaurBase is
     }
 
     function _lockBase(
-        uint256 amount
+        uint256 amount,
+        uint256 initialOracleBalance
     ) internal returns (WaitosaurState storage state) {
         if (amount == 0) revert AmountZero();
         state = _getState();
         if (state.lockedAmount != 0) revert AlreadyLocked();
         state.lockedAmount = amount;
         state.lastLocked = block.timestamp;
+        state.initialOracleBalance = initialOracleBalance;
 
         emit Locked(amount);
     }
 
-    function lock(uint256 amount) public {
+    function lock(uint256 amount) public virtual {
         WaitosaurAccess storage roles = _getRoles();
         if (_msgSender() != roles.locker && _msgSender() != owner()) {
             revert Unauthorized();
         }
-        _lockBase(amount);
+        uint256 initialBalance = _getInitialOracleBalance();
+        _lockBase(amount, initialBalance);
+    }
+
+    /// @notice Override this to provide initial oracle balance before locking
+    function _getInitialOracleBalance()
+        internal
+        view
+        virtual
+        returns (uint256)
+    {
+        revert("_getInitialOracleBalance is not implemented");
     }
 
     /// @dev Only unlocker or owner is allowed.
     function unlock() external {
         WaitosaurAccess storage roles = _getRoles();
-        if (_msgSender() != roles.unlocker && _msgSender() != owner())
+        if (_msgSender() != roles.unlocker && _msgSender() != owner()) {
             revert Unauthorized();
+        }
         WaitosaurState storage state = _getState();
         _ensureLocked(state);
         _unlock();
@@ -164,5 +180,6 @@ abstract contract WaitosaurBase is
     function _clearLock(WaitosaurState storage state) internal {
         state.lockedAmount = 0;
         state.lastLocked = 0;
+        state.initialOracleBalance = 0;
     }
 }

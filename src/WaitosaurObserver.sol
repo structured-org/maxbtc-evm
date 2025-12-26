@@ -147,6 +147,16 @@ contract WaitosaurObserver is WaitosaurBase {
     // Overrides
     // ---------------------------------------------------------------------
 
+    function _getInitialOracleBalance()
+        internal
+        view
+        override(WaitosaurBase)
+        returns (uint256)
+    {
+        WaitosaurObserverConfig storage config = _config();
+        return IAumOracle(config.oracle).getSpotBalance(config.asset);
+    }
+
     function _unlock() internal view override(WaitosaurBase) {
         WaitosaurObserverConfig storage config = _config();
         WaitosaurState storage state = _getState();
@@ -161,7 +171,12 @@ contract WaitosaurObserver is WaitosaurBase {
             );
         }
 
-        if (spotBalance < state.lockedAmount) {
+        // Verify that balance increased by at least the locked amount
+        // Use subtraction to avoid overflow
+        if (spotBalance < state.initialOracleBalance) {
+            revert OracleBalanceIncorrect();
+        }
+        if (spotBalance - state.initialOracleBalance < state.lockedAmount) {
             revert InsufficientAssetAmount();
         }
     }

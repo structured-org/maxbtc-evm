@@ -112,7 +112,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         allowlist = Allowlist(address(allowlistProxy));
         allowlist.allow(_arr(USER));
         oracle = new MockAumOracle();
-        oracle.setBalance(type(uint256).max);
+        // Set initial oracle balance to a realistic high value (1M BTC in satoshis)
+        oracle.setBalance(1_000_000e8);
         // Seed ER for fee collector baseline
         provider.publish(1e18, block.timestamp);
 
@@ -303,6 +304,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         assertEq(wbtc.balanceOf(DEPOSIT_FORWARDER), depositAmount, "flushed");
 
         // Unlock observer and complete cycle back to Idle
+        // Simulate oracle balance increase by the locked amount
+        oracle.setBalance(oracle.balance() + waitosaurObserver.lockedAmount());
         vm.prank(OPERATOR);
         waitosaurObserver.unlock();
         assertEq(waitosaurObserver.lockedAmount(), 0, "observer unlocked");
@@ -539,6 +542,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         vm.expectRevert(MaxBTCCore.WaitosaurLocked.selector);
         core.tick();
         // Unlock and finish cycle, batch id should advance to 2 after full cycle
+        // Simulate oracle balance increase by the locked amount
+        oracle.setBalance(oracle.balance() + waitosaurObserver.lockedAmount());
         vm.prank(OPERATOR);
         waitosaurObserver.unlock();
         vm.prank(OPERATOR);
@@ -637,6 +642,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         uint256 forwarderBefore = wbtc.balanceOf(DEPOSIT_FORWARDER);
         uint256 extraDeposit = 5e6;
         wbtc.mint(address(core), extraDeposit);
+        // Simulate oracle balance increase by the locked amount
+        oracle.setBalance(oracle.balance() + waitosaurObserver.lockedAmount());
         vm.prank(OPERATOR);
         waitosaurObserver.unlock(); // unlock observer for continued deposit flow
         vm.prank(OPERATOR);
@@ -694,6 +701,8 @@ contract MaxBTCCoreIntegrationTest is Test {
         core.tick();
         vm.prank(OWNER);
         core.setPaused(false);
+        // Simulate oracle balance increase by the locked amount
+        oracle.setBalance(oracle.balance() + waitosaurObserver.lockedAmount());
         vm.prank(OPERATOR);
         waitosaurObserver.unlock();
         vm.prank(OPERATOR);
