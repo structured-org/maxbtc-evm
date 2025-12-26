@@ -6,7 +6,7 @@ struct Batch {
     /// If the batch is in WITHDRAWING or FINALIZED, how much BTC was requested?
     uint256 btcRequested;
     /// The amount of maxBTC burned for this batch
-    uint256 maxBtcToBurn;
+    uint256 maxBtcBurned;
     /// If in FINALIZED state, how much BTC was actually collected?
     uint256 collectedAmount;
     /// Snapshot of deposits held when the batch was moved to WITHDRAWING

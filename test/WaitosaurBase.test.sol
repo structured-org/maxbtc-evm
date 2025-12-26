@@ -2,11 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {
-    WaitosaurBase,
-    WaitosaurState,
-    WaitosaurAccess
-} from "../src/WaitosaurBase.sol";
+import {WaitosaurBase, WaitosaurState, WaitosaurAccess} from "../src/WaitosaurBase.sol";
 
 contract Waitosaur is WaitosaurBase {
     event UnlockCalled(uint256 amount);

@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {
-    Initializable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {
-    UUPSUpgradeable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {
-    Ownable2StepUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import {
-    ERC1155HolderUpgradeable
-} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {ERC1155HolderUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
 import {StorageSlot} from "@openzeppelin/contracts/utils/StorageSlot.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-    SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {Batch} from "./types/CoreTypes.sol";
 import {WithdrawalToken} from "./WithdrawalToken.sol";
@@ -54,8 +44,7 @@ contract WithdrawalManager is
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.config")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant CONFIG_STORAGE_SLOT =
         0x586b8ebd4b221736eefae7cfa16e8ed3b4ce4c3890765b521ad826b0ffedfd00;
-    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.paid_amount")) - 1)) &
-    /// ~bytes32(uint256(0xff))
+    /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.paid_amount")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant PAID_AMOUNT_STORAGE_SLOT =
         0x8ee28e9cbcd498a9bd31513552accc39c2806ab50852fb31c37d622919337900;
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.withdrawal_manager.pause")) - 1)) & ~bytes32(uint256(0xff))
@@ -80,9 +69,8 @@ contract WithdrawalManager is
     ) public initializer {
         if (_coreContract == address(0)) revert InvalidCoreContractAddress();
         if (_wbtcContract == address(0)) revert InvalidwBTCContractAddress();
-        if (_withdrawalTokenContract == address(0)) {
+        if (_withdrawalTokenContract == address(0))
             revert InvalidWithdrawalTokenContractAddress();
-        }
         __Ownable_init(owner_);
         __Ownable2Step_init();
         __UUPSUpgradeable_init();
@@ -93,8 +81,7 @@ contract WithdrawalManager is
     }
 
     function onERC1155Received(
-        address,
-        /*operator*/
+        address /*operator*/,
         address from,
         uint256 batchId,
         uint256 value,
@@ -153,9 +140,8 @@ contract WithdrawalManager is
         WithdrawalManagerConfig storage config = _getWithdrawalManagerConfig();
         if (newCoreContract == address(0)) revert InvalidCoreContractAddress();
         if (newWbtcContract == address(0)) revert InvalidwBTCContractAddress();
-        if (newWithdrawalTokenContract == address(0)) {
+        if (newWithdrawalTokenContract == address(0))
             revert InvalidWithdrawalTokenContractAddress();
-        }
         config.coreContract = newCoreContract;
         config.wbtcContract = newWbtcContract;
         config.withdrawalTokenContract = newWithdrawalTokenContract;

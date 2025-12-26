@@ -1,15 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {
-    Initializable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {
-    UUPSUpgradeable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {
-    Ownable2StepUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
 struct WaitosaurState {
     uint256 lockedAmount;
@@ -134,9 +128,8 @@ abstract contract WaitosaurBase is
     /// @dev Only unlocker or owner is allowed.
     function unlock() external {
         WaitosaurAccess storage roles = _getRoles();
-        if (_msgSender() != roles.unlocker && _msgSender() != owner()) {
+        if (_msgSender() != roles.unlocker && _msgSender() != owner())
             revert Unauthorized();
-        }
         WaitosaurState storage state = _getState();
         _ensureLocked(state);
         _unlock();
