@@ -154,7 +154,16 @@ contract WaitosaurObserver is WaitosaurBase {
         returns (uint256)
     {
         WaitosaurObserverConfig storage config = _config();
-        return IAumOracle(config.oracle).getSpotBalance(config.asset);
+        (uint256 aum, uint256 initialTimestamp) = IAumOracle(config.oracle)
+            .getSpotBalance(config.asset);
+        if (block.timestamp > initialTimestamp + config.stalenessThreshold) {
+            revert StaleOracleData(
+                initialTimestamp,
+                block.timestamp,
+                config.stalenessThreshold
+            );
+        }
+        return aum;
     }
 
     function _unlock() internal view override(WaitosaurBase) {
