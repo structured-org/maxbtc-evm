@@ -2,11 +2,14 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {WithdrawalManager, ICoreContract} from "../src/WithdrawalManager.sol";
 import {WithdrawalToken} from "../src/WithdrawalToken.sol";
 import {Batch} from "../src/types/CoreTypes.sol";
+import {Allowlist} from "../src/Allowlist.sol";
 
 /// @notice Minimal mock ERC20 WBTC implementation used for testing
 contract MockWBTC {
@@ -129,6 +132,7 @@ contract WithdrawalManagerTest is Test {
     WithdrawalToken internal token;
     MockWBTC internal wbtc;
     MockCore internal core;
+    Allowlist internal allowlist;
 
     address internal owner = address(0xABCD);
     address internal user = address(0x1234);
@@ -138,6 +142,14 @@ contract WithdrawalManagerTest is Test {
         // Deploy mock WBTC
         wbtc = new MockWBTC("Wrapped BTC", "WBTC");
 
+        Allowlist allowlistImpl = new Allowlist();
+        ERC1967Proxy allowlistProxy = new ERC1967Proxy(
+            address(allowlistImpl),
+            abi.encodeCall(Allowlist.initialize, (address(this)))
+        );
+        allowlist = Allowlist(address(allowlistProxy));
+        allowlist.allow(_arr(user));
+
         // Deploy mock Core
         core = new MockCore();
 
@@ -145,30 +157,22 @@ contract WithdrawalManagerTest is Test {
         uint256 collectedAmount = 1_000_000_000;
         core.setCollectedAmount(BATCH_ID, collectedAmount);
 
-        // Deploy WithdrawalToken via UUPS proxy
+        // Deploy WithdrawalToken via UUPS proxy (deferred init)
         WithdrawalToken tokenImpl = new WithdrawalToken();
-        bytes memory tokenInitData = abi.encodeCall(
-            WithdrawalToken.initialize,
-            (
-                owner,
-                address(core),
-                "https://api.example.com/",
-                "WithdrawalToken",
-                "WRT"
-            )
-        );
-
-        ERC1967Proxy tokenProxy = new ERC1967Proxy(
-            address(tokenImpl),
-            tokenInitData
-        );
+        ERC1967Proxy tokenProxy = new ERC1967Proxy(address(tokenImpl), "");
         token = WithdrawalToken(address(tokenProxy));
 
         // Deploy WithdrawalManager via UUPS proxy
         WithdrawalManager managerImpl = new WithdrawalManager();
         bytes memory managerInitData = abi.encodeCall(
             WithdrawalManager.initialize,
-            (owner, address(core), address(wbtc), address(token))
+            (
+                owner,
+                address(core),
+                address(wbtc),
+                address(token),
+                address(allowlist)
+            )
         );
 
         ERC1967Proxy managerProxy = new ERC1967Proxy(
@@ -176,6 +180,16 @@ contract WithdrawalManagerTest is Test {
             managerInitData
         );
         manager = WithdrawalManager(address(managerProxy));
+
+        // Now initialize withdrawal token with the manager address
+        token.initialize(
+            owner,
+            address(core),
+            address(managerProxy),
+            "https://api.example.com/",
+            "WithdrawalToken",
+            "WRT"
+        );
 
         // Fund WithdrawalManager with WBTC so it can redeem users
         wbtc.mint(address(manager), collectedAmount);
@@ -284,18 +298,15 @@ contract WithdrawalManagerTest is Test {
 
     function testUpdateConfigByOwner() public {
         // Owner updates config successfully
-        address newCore = address(0x1111);
-        address newWbtc = address(0x2222);
-        address newToken = address(0x3333);
+        address newAllowlist = address(0x4444);
 
         vm.prank(owner);
-        manager.updateConfig(newCore, newWbtc, newToken);
+        manager.updateConfig(newAllowlist);
 
         WithdrawalManager.WithdrawalManagerConfig memory config = manager
             .getConfig();
-        assertEq(config.coreContract, newCore);
-        assertEq(config.wbtcContract, newWbtc);
-        assertEq(config.withdrawalTokenContract, newToken);
+
+        assertEq(config.allowlistContract, newAllowlist);
     }
 
     function testUpdateConfigRevertsForNonOwner() public {
@@ -306,35 +317,18 @@ contract WithdrawalManagerTest is Test {
                 address(this)
             )
         );
-        manager.updateConfig(address(1), address(2), address(3));
+        manager.updateConfig(address(4));
     }
 
     function testUpdateConfigRevertsForZeroAddresses() public {
         // Zero addresses are forbidden
-
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                WithdrawalManager.InvalidCoreContractAddress.selector
+                WithdrawalManager.InvalidAllowlistContractAddress.selector
             )
         );
-        manager.updateConfig(address(0), address(2), address(3));
-
-        vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                WithdrawalManager.InvalidwBTCContractAddress.selector
-            )
-        );
-        manager.updateConfig(address(1), address(0), address(3));
-
-        vm.prank(owner);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                WithdrawalManager.InvalidWithdrawalTokenContractAddress.selector
-            )
-        );
-        manager.updateConfig(address(1), address(2), address(0));
+        manager.updateConfig(address(0));
     }
 
     function testPauseAndUnpauseEmitsEventsAndChangesState() public {
@@ -386,6 +380,31 @@ contract WithdrawalManagerTest is Test {
         manager.upgradeToAndCall(address(implV2), "");
     }
 
+    function testNotAllowlistedRedemptionReverts() public {
+        uint256 batchId = 2;
+        core.setCollectedAmount(batchId, 1000);
+
+        address userA = address(0xAAAA);
+        address stranger = address(0xBBBB);
+        allowlist.allow(_arr(userA));
+
+        vm.prank(address(core));
+        token.mint(userA, batchId, 10, "");
+        wbtc.mint(address(manager), 1000);
+
+        vm.prank(userA);
+        token.safeTransferFrom(userA, stranger, batchId, 4, "");
+
+        vm.prank(stranger);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WithdrawalManager.AddressNotAllowed.selector,
+                stranger
+            )
+        );
+        token.safeTransferFrom(stranger, address(manager), batchId, 4, "");
+    }
+
     /// -----------------------------------------------------------------------
     ///  Additional tests: partial redemption, multi-user, rounding, storage
     /// -----------------------------------------------------------------------
@@ -397,6 +416,7 @@ contract WithdrawalManagerTest is Test {
         core.setCollectedAmount(batchId, collectedAmount);
 
         address userA = address(0xAAAA);
+        allowlist.allow(_arr(userA));
 
         // Mint 10 redemption tokens to userA
         vm.prank(address(core));
@@ -453,6 +473,8 @@ contract WithdrawalManagerTest is Test {
 
         address userA = address(0xAAAA);
         address userB = address(0xBBBB);
+
+        allowlist.allow(_arr(userA, userB));
 
         // Mint 10 tokens total: 4 to A, 6 to B
         vm.startPrank(address(core));
@@ -546,6 +568,7 @@ contract WithdrawalManagerTest is Test {
         core.setCollectedAmount(batchId, collectedAmount);
 
         address tinyUser = address(0xCAFE);
+        allowlist.allow(_arr(tinyUser));
 
         // Mint 3 tokens, user redeems 1 -> fraction = 1 / 3 => 0 in integer math
         vm.prank(address(core));
@@ -603,6 +626,7 @@ contract WithdrawalManagerTest is Test {
         core.setCollectedAmount(batchId, collectedAmount);
 
         address someUser = address(0xDEAD);
+        allowlist.allow(_arr(someUser));
 
         // Mint 10 tokens to user
         vm.prank(address(core)); // simulate mint by core contract
@@ -660,5 +684,19 @@ contract WithdrawalManagerTest is Test {
             123,
             "newVar must be set correctly without storage collision"
         );
+    }
+
+    function _arr(address a) private pure returns (address[] memory arr) {
+        arr = new address[](1);
+        arr[0] = a;
+    }
+
+    function _arr(
+        address a,
+        address b
+    ) private pure returns (address[] memory arr) {
+        arr = new address[](2);
+        arr[0] = a;
+        arr[1] = b;
     }
 }

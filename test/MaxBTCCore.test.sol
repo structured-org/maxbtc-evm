@@ -10,7 +10,9 @@ import {WaitosaurHolder} from "../src/WaitosaurHolder.sol";
 import {Allowlist} from "../src/Allowlist.sol";
 import {Receiver} from "../src/Receiver.sol";
 import {Batch} from "../src/types/CoreTypes.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MockERC20 is ERC20 {
     uint8 private immutable _DECIMALS;
@@ -141,16 +143,18 @@ contract MaxBTCCoreTest is Test {
 
         maxbtc.initialize(
             address(this),
-            address(this), // ICS20 for test mints
+            address(this), // placeholder ICS20; updated below
             "maxBTC",
             "maxBTC"
         );
         maxbtc.initializeV2(address(core));
+        maxbtc.updateIcs20(OPERATOR); // allow operator-driven burns during ticks
         maxbtc.setEurekaRateLimits(1e18, 1e18); // needed for ICS20 to be allowed to mint
 
         withdrawalToken.initialize(
             address(this),
             address(core),
+            WITHDRAWAL_MANAGER,
             "ipfs://test/",
             "Redemption",
             "rMAX-"
@@ -159,6 +163,7 @@ contract MaxBTCCoreTest is Test {
         waitosaurHolder.updateConfig(WITHDRAWAL_MANAGER);
 
         allowlist.allow(_arr(USER));
+        provider.publishAum(int256(1), depositToken.decimals());
     }
 
     function testDepositMintsWithFeeAndAllowlist() external {
@@ -191,6 +196,7 @@ contract MaxBTCCoreTest is Test {
     }
 
     function testMintByOwnerMintsToRecipient() external {
+        vm.prank(address(core));
         maxbtc.mint(address(0xFACE), 0); // noop to ensure contract exists
         uint256 amount = 5e7;
         core.mintByOwner(amount, USER);
@@ -199,9 +205,19 @@ contract MaxBTCCoreTest is Test {
 
     function testMintFeeByCollector() external {
         uint256 amount = 3e7;
+        provider.publishAum(int256(1), depositToken.decimals());
         vm.prank(FEE_COLLECTOR);
         core.mintFee(amount);
         assertEq(maxbtc.balanceOf(FEE_COLLECTOR), amount, "fee minted");
+    }
+
+    function testMintFeeRevertsWhenAumNonPositive() external {
+        uint256 amount = 1e7;
+        provider.publishAum(int256(-1), depositToken.decimals());
+        // do not publish AUM (default 0) -> should revert
+        vm.prank(FEE_COLLECTOR);
+        vm.expectRevert(MaxBTCCore.AumMustBePositive.selector);
+        core.mintFee(amount);
     }
 
     function testDepositRejectsNotAllowlisted() external {
@@ -268,6 +284,7 @@ contract MaxBTCCoreTest is Test {
         core.deposit(depositAmount, USER, 0);
 
         uint256 burnAmount = 5e7; // 0.5 maxBTC
+        maxbtc.approve(address(core), burnAmount);
         core.withdraw(burnAmount);
         vm.stopPrank();
 
@@ -286,7 +303,7 @@ contract MaxBTCCoreTest is Test {
         uint256 expectedCost = depositBeforeFees - expectedCollected;
 
         assertTrue(finalized, "finalized");
-        assertEq(processed.maxBtcBurned, burnAmount, "burned amount");
+        assertEq(processed.maxBtcToBurn, burnAmount, "burned amount");
         assertEq(processed.collectedAmount, expectedCollected, "collected");
         assertEq(
             depositToken.balanceOf(WITHDRAWAL_MANAGER),
@@ -312,6 +329,7 @@ contract MaxBTCCoreTest is Test {
         _publishRate(1e18);
 
         // Mint maxBTC directly via ICS20 mock hook.
+        vm.prank(address(core));
         maxbtc.mint(USER, 2e8);
         // Fund the core with limited deposits so the batch cannot be fully covered.
         depositToken.mint(address(core), 5e7);
@@ -400,6 +418,7 @@ contract MaxBTCCoreTest is Test {
     function testFsmWithdrawCycleCompletes() external {
         _publishRate(1e18);
         // mint maxBTC and partial deposits so the batch is not fully covered
+        vm.prank(address(core));
         maxbtc.mint(USER, 2e8);
         depositToken.mint(address(core), 5e7);
 
@@ -429,6 +448,7 @@ contract MaxBTCCoreTest is Test {
 
     function testWithdrawPendingProcessesWaitosaurLock() external {
         _publishRate(1e18);
+        vm.prank(address(core));
         maxbtc.mint(USER, 1e8);
 
         uint256 lockedAmount = 3e7;
@@ -440,7 +460,6 @@ contract MaxBTCCoreTest is Test {
         maxbtc.approve(address(core), type(uint256).max);
         vm.prank(USER);
         core.withdraw(1e8);
-
         vm.prank(OPERATOR);
         core.tick(); // Idle -> WithdrawJlp
         vm.prank(OPERATOR);

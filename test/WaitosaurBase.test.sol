@@ -2,7 +2,11 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {WaitosaurBase, WaitosaurState, WaitosaurAccess} from "../src/WaitosaurBase.sol";
+import {
+    WaitosaurBase,
+    WaitosaurState,
+    WaitosaurAccess
+} from "../src/WaitosaurBase.sol";
 
 contract Waitosaur is WaitosaurBase {
     event UnlockCalled(uint256 amount);
@@ -18,6 +22,15 @@ contract Waitosaur is WaitosaurBase {
     function _unlock() internal override {
         WaitosaurState storage state = _getState();
         emit UnlockCalled(state.lockedAmount);
+    }
+
+    function _getInitialOracleBalance()
+        internal
+        view
+        override
+        returns (uint256)
+    {
+        return 0;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}

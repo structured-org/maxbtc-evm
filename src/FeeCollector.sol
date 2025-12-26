@@ -1,11 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    ReentrancyGuardUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {
+    UUPSUpgradeable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 interface IReceiver {
     /// Returns current exchange rate and timestamp of publication.
@@ -20,11 +31,15 @@ interface ICoreContract {
 contract FeeCollector is
     Initializable,
     UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
     Ownable2StepUpgradeable
 {
     using SafeERC20 for IERC20;
 
     uint256 private constant ONE = 1e18;
+    uint256 private constant MIN_COLLECTION_PERIOD_SECONDS = 60 * 60; // one hour
+    uint256 private constant MAX_COLLECTION_PERIOD_SECONDS = 60 * 60 * 24 * 30; // one month
+    uint256 private constant MAX_STALENESS_THRESHOLD_SECONDS = 60 * 60 * 24 * 7; // one week
 
     struct Config {
         address coreContract;
@@ -36,6 +51,8 @@ contract FeeCollector is
         uint256 collectionPeriodSeconds;
         /// ERC-20 fee token (maxBTC).
         IERC20 feeToken;
+        /// Maximum allowed age of exchange rate data, in seconds.
+        uint256 stalenessThreshold;
     }
 
     struct State {
@@ -54,6 +71,13 @@ contract FeeCollector is
     error NegativeOrZeroApy(uint256 currentRate, uint256 lastRate);
     error InvalidZeroAmount();
     error InvalidErReceiverAddress();
+    error InvalidCollectionPeriodSeconds();
+    error InvalidStalenessThreshold();
+    error StaleExchangeRate(
+        uint256 dataTimestamp,
+        uint256 currentTimestamp,
+        uint256 threshold
+    );
 
     /// @notice Emitted when fees are collected and minted to the core contract.
     event FeeCollected(
@@ -71,7 +95,8 @@ contract FeeCollector is
         address coreContract,
         address erReceiver,
         uint256 feeApyReductionPercentage,
-        uint64 collectionPeriodSeconds
+        uint64 collectionPeriodSeconds,
+        uint256 stalenessThreshold
     );
 
     /// @dev keccak256(abi.encode(uint256(keccak256("maxbtc.fee_collector.config")) - 1)) & ~bytes32(uint256(0xff))
@@ -93,7 +118,8 @@ contract FeeCollector is
         address erReceiver_,
         uint256 feeApyReductionPercentage_,
         uint64 collectionPeriodSeconds_,
-        address feeToken_
+        address feeToken_,
+        uint256 stalenessThreshold_
     ) external initializer {
         if (coreContract_ == address(0)) revert InvalidCoreContractAddress();
         if (erReceiver_ == address(0)) revert InvalidErReceiverAddress();
@@ -103,10 +129,17 @@ contract FeeCollector is
         ) {
             revert InvalidFeeReductionPercentage();
         }
+        if (
+            collectionPeriodSeconds_ < MIN_COLLECTION_PERIOD_SECONDS ||
+            collectionPeriodSeconds_ > MAX_COLLECTION_PERIOD_SECONDS
+        ) {
+            revert InvalidCollectionPeriodSeconds();
+        }
 
         __Ownable_init(owner_);
         __Ownable2Step_init();
         __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
 
         Config storage config = _getConfig();
         config.coreContract = coreContract_;
@@ -114,15 +147,31 @@ contract FeeCollector is
         config.feeApyReductionPercentage = feeApyReductionPercentage_;
         config.collectionPeriodSeconds = collectionPeriodSeconds_;
         config.feeToken = IERC20(feeToken_);
+        if (
+            stalenessThreshold_ == 0 ||
+            stalenessThreshold_ > MAX_STALENESS_THRESHOLD_SECONDS
+        ) {
+            revert InvalidStalenessThreshold();
+        }
+        config.stalenessThreshold = stalenessThreshold_;
 
-        (uint256 initialRate, ) = IReceiver(erReceiver_).getLatest();
+        (uint256 initialRate, uint256 initialTimestamp) = IReceiver(erReceiver_)
+            .getLatest();
+
+        if (block.timestamp > initialTimestamp + stalenessThreshold_) {
+            revert StaleExchangeRate(
+                initialTimestamp,
+                block.timestamp,
+                stalenessThreshold_
+            );
+        }
 
         State storage st = _getState();
         st.lastCollectionTimestamp = block.timestamp;
         st.lastExchangeRate = initialRate;
     }
 
-    function collectFee() external {
+    function collectFee() external nonReentrant {
         Config storage config = _getConfig();
         State storage st = _getState();
 
@@ -133,7 +182,17 @@ contract FeeCollector is
             revert CollectionPeriodNotElapsed();
         }
 
-        (uint256 currentRate, ) = IReceiver(config.erReceiver).getLatest();
+        (uint256 currentRate, uint256 currentTimestamp) = IReceiver(
+            config.erReceiver
+        ).getLatest();
+
+        if (block.timestamp > currentTimestamp + config.stalenessThreshold) {
+            revert StaleExchangeRate(
+                currentTimestamp,
+                block.timestamp,
+                config.stalenessThreshold
+            );
+        }
 
         uint256 totalSupply = config.feeToken.totalSupply();
 
@@ -175,7 +234,8 @@ contract FeeCollector is
         address newCoreContract,
         address newErReceiver,
         uint256 newFeeApyReductionPercentage,
-        uint64 newCollectionPeriodSeconds
+        uint64 newCollectionPeriodSeconds,
+        uint256 newStalenessThreshold
     ) external onlyOwner {
         if (newCoreContract == address(0)) revert InvalidCoreContractAddress();
         if (newErReceiver == address(0)) revert InvalidErReceiverAddress();
@@ -185,18 +245,32 @@ contract FeeCollector is
         ) {
             revert InvalidFeeReductionPercentage();
         }
+        if (
+            newCollectionPeriodSeconds < MIN_COLLECTION_PERIOD_SECONDS ||
+            newCollectionPeriodSeconds > MAX_COLLECTION_PERIOD_SECONDS
+        ) {
+            revert InvalidCollectionPeriodSeconds();
+        }
+        if (
+            newStalenessThreshold == 0 ||
+            newStalenessThreshold > MAX_STALENESS_THRESHOLD_SECONDS
+        ) {
+            revert InvalidStalenessThreshold();
+        }
 
         Config storage config = _getConfig();
         config.coreContract = newCoreContract;
         config.erReceiver = newErReceiver;
         config.feeApyReductionPercentage = newFeeApyReductionPercentage;
         config.collectionPeriodSeconds = newCollectionPeriodSeconds;
+        config.stalenessThreshold = newStalenessThreshold;
 
         emit ConfigUpdated(
             newCoreContract,
             newErReceiver,
             newFeeApyReductionPercentage,
-            newCollectionPeriodSeconds
+            newCollectionPeriodSeconds,
+            newStalenessThreshold
         );
     }
 

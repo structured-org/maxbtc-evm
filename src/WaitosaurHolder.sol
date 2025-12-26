@@ -2,7 +2,9 @@
 pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {WaitosaurBase, WaitosaurState} from "./WaitosaurBase.sol";
 
 struct WaitosaurHolderConfig {
@@ -17,6 +19,7 @@ contract WaitosaurHolder is WaitosaurBase {
 
     error InvalidTokenAddress();
     error InvalidReceiverAddress();
+    error ConfigCantBeUpdatedWhenLocked();
 
     // ---------------------------------------------------------------------
     // Events
@@ -69,6 +72,7 @@ contract WaitosaurHolder is WaitosaurBase {
     // ---------------------------------------------------------------------
 
     function updateConfig(address newReceiver) external onlyOwner {
+        if (!unlocked()) revert ConfigCantBeUpdatedWhenLocked();
         if (newReceiver == address(0)) revert InvalidReceiverAddress();
         WaitosaurHolderConfig storage config = _getWaitosaurConfig();
         config.receiver = newReceiver;
@@ -88,12 +92,25 @@ contract WaitosaurHolder is WaitosaurBase {
     // Overrides
     // ---------------------------------------------------------------------
 
+    function _getInitialOracleBalance()
+        internal
+        view
+        override(WaitosaurBase)
+        returns (uint256)
+    {
+        WaitosaurHolderConfig storage config = _getWaitosaurConfig();
+        IERC20 tokenERC20 = IERC20(config.token);
+        return tokenERC20.balanceOf(address(this));
+    }
+
     function _unlock() internal override(WaitosaurBase) {
         WaitosaurHolderConfig storage config = _getWaitosaurConfig();
         WaitosaurState storage state = _getState();
         IERC20 tokenERC20 = IERC20(config.token);
 
         uint256 balance = tokenERC20.balanceOf(address(this));
+        // For Holder, we just need to ensure we have enough balance
+        // The tokens are already in the contract, so we don't require balance increase
         if (balance < state.lockedAmount) revert InsufficientAssetAmount();
         SafeERC20.safeTransfer(tokenERC20, config.receiver, state.lockedAmount);
     }

@@ -2,9 +2,13 @@
 pragma solidity ^0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {
+    ERC1967Proxy
+} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {FeeCollector, IReceiver, ICoreContract} from "../src/FeeCollector.sol"; // adjust the path if needed
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockERC20 is ERC20 {
@@ -89,7 +93,8 @@ contract FeeCollectorTest is Test {
         address erReceiver_,
         uint256 feeApyReductionPercentage_,
         uint64 collectionPeriodSeconds_,
-        address feeToken_
+        address feeToken_,
+        uint256 stalenessThreshold_
     ) internal returns (FeeCollector) {
         FeeCollector impl = new FeeCollector();
         bytes memory data = abi.encodeWithSelector(
@@ -99,7 +104,8 @@ contract FeeCollectorTest is Test {
             erReceiver_,
             feeApyReductionPercentage_,
             collectionPeriodSeconds_,
-            feeToken_
+            feeToken_,
+            stalenessThreshold_
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), data);
         return FeeCollector(address(proxy));
@@ -116,7 +122,8 @@ contract FeeCollectorTest is Test {
             address(core),
             0.1e18, // 10% APY reduction as fee
             3600, // 1 hour collection period
-            address(maxbtc)
+            address(maxbtc),
+            3600 // 1 hour staleness threshold
         );
 
         core.setFeeToken(maxbtc, address(feeCollector));
@@ -153,7 +160,8 @@ contract FeeCollectorTest is Test {
             address(core),
             0.1e18,
             3600,
-            address(maxbtc)
+            address(maxbtc),
+            3600
         );
         vm.expectRevert(FeeCollector.InvalidCoreContractAddress.selector);
         new ERC1967Proxy(address(impl), data);
@@ -168,7 +176,8 @@ contract FeeCollectorTest is Test {
             address(0), // invalid exchanage rate receiver
             0.1e18,
             3600,
-            address(maxbtc)
+            address(maxbtc),
+            3600
         );
         vm.expectRevert(FeeCollector.InvalidErReceiverAddress.selector);
         new ERC1967Proxy(address(impl), data);
@@ -183,7 +192,8 @@ contract FeeCollectorTest is Test {
             address(core),
             0.1e18,
             3600,
-            address(0) // invalid token
+            address(0), // invalid token
+            3600
         );
         vm.expectRevert(FeeCollector.InvalidFeeTokenAddress.selector);
         new ERC1967Proxy(address(impl), data);
@@ -198,7 +208,8 @@ contract FeeCollectorTest is Test {
             address(core),
             0, // invalid
             3600,
-            address(maxbtc)
+            address(maxbtc),
+            3600
         );
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
         new ERC1967Proxy(address(impl), data);
@@ -213,9 +224,46 @@ contract FeeCollectorTest is Test {
             address(core),
             ONE, // >= 1.0 invalid
             3600,
-            address(maxbtc)
+            address(maxbtc),
+            3600
         );
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
+        new ERC1967Proxy(address(impl), data);
+    }
+
+    function testInitializeRevertsOnInvalidCollectionPeriodSecondsTooLow()
+        public
+    {
+        FeeCollector impl = new FeeCollector();
+        bytes memory data = abi.encodeWithSelector(
+            FeeCollector.initialize.selector,
+            owner,
+            address(core),
+            address(core),
+            0.1e18,
+            60 * 60 - 1,
+            address(maxbtc),
+            3600
+        );
+        vm.expectRevert(FeeCollector.InvalidCollectionPeriodSeconds.selector);
+        new ERC1967Proxy(address(impl), data);
+    }
+
+    function testInitializeRevertsOnInvalidCollectionPeriodSecondsTooHigh()
+        public
+    {
+        FeeCollector impl = new FeeCollector();
+        bytes memory data = abi.encodeWithSelector(
+            FeeCollector.initialize.selector,
+            owner,
+            address(core),
+            address(core),
+            0.1e18,
+            60 * 60 * 24 * 30 + 1,
+            address(maxbtc),
+            3600
+        );
+        vm.expectRevert(FeeCollector.InvalidCollectionPeriodSeconds.selector);
         new ERC1967Proxy(address(impl), data);
     }
 
@@ -267,6 +315,83 @@ contract FeeCollectorTest is Test {
             )
         );
         feeCollector.collectFee();
+    }
+
+    function testInitializeRevertsOnStaleExchangeRate() public {
+        // Set up a mock with stale data
+        MockCore staleCore = new MockCore();
+        staleCore.setRate(1e18);
+
+        // Warp time forward to make the exchange rate stale
+        vm.warp(block.timestamp + 7200); // 2 hours later
+
+        FeeCollector impl = new FeeCollector();
+        bytes memory data = abi.encodeWithSelector(
+            FeeCollector.initialize.selector,
+            owner,
+            address(staleCore),
+            address(staleCore),
+            0.1e18,
+            3600,
+            address(maxbtc),
+            3600 // 1 hour staleness threshold
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FeeCollector.StaleExchangeRate.selector,
+                staleCore.publishedAt(),
+                block.timestamp,
+                3600
+            )
+        );
+        new ERC1967Proxy(address(impl), data);
+    }
+
+    function testCollectFeeRevertsOnStaleExchangeRate() public {
+        maxbtc.mint(address(0xCAFE), 1_000_000 * 10 ** 8);
+
+        // Set initial rate
+        uint256 oldRate = core.exchangeRate();
+        uint256 newRate = oldRate + 0.2e18;
+        core.setRate(newRate);
+
+        uint256 rateTimestamp = core.publishedAt();
+
+        // Move forward past both collection period and staleness threshold
+        vm.warp(block.timestamp + 7700); // Make data stale (> 3600 seconds from rateTimestamp)
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                FeeCollector.StaleExchangeRate.selector,
+                rateTimestamp,
+                block.timestamp,
+                3600
+            )
+        );
+        feeCollector.collectFee();
+    }
+
+    function testCollectFeeSucceedsWithFreshExchangeRate() public {
+        maxbtc.mint(address(0xCAFE), 1_000_000 * 10 ** 8);
+
+        // Move forward past collection period
+        vm.warp(block.timestamp + 4000);
+
+        // Update rate properly (this updates both rate and timestamp)
+        uint256 oldRate = core.exchangeRate();
+        uint256 newRate = oldRate + 0.2e18;
+        core.setRate(newRate);
+
+        // This should succeed because the data is fresh
+        feeCollector.collectFee();
+
+        FeeCollector.State memory st = feeCollector.getState();
+        assertEq(
+            st.lastExchangeRate,
+            newRate,
+            "exchange rate should be updated"
+        );
     }
 
     function testCollectFeeNoMintWhenTotalSupplyZero() public {
@@ -509,22 +634,66 @@ contract FeeCollectorTest is Test {
 
     function testUpdateConfigRevertsOnZeroCoreContract() public {
         vm.expectRevert(FeeCollector.InvalidCoreContractAddress.selector);
-        feeCollector.updateConfig(address(0), address(core), 0.2e18, 7200);
+        feeCollector.updateConfig(
+            address(0),
+            address(core),
+            0.2e18,
+            7200,
+            3600
+        );
     }
 
     function testUpdateConfigRevertsOnZeroErReceiverContract() public {
         vm.expectRevert(FeeCollector.InvalidErReceiverAddress.selector);
-        feeCollector.updateConfig(address(core), address(0), 0.2e18, 7200);
+        feeCollector.updateConfig(
+            address(core),
+            address(0),
+            0.2e18,
+            7200,
+            3600
+        );
     }
 
     function testUpdateConfigRevertsOnInvalidFeeReductionZero() public {
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
-        feeCollector.updateConfig(address(core), address(core), 0, 7200);
+        feeCollector.updateConfig(address(core), address(core), 0, 7200, 3600);
     }
 
     function testUpdateConfigRevertsOnInvalidFeeReductionTooHigh() public {
         vm.expectRevert(FeeCollector.InvalidFeeReductionPercentage.selector);
-        feeCollector.updateConfig(address(core), address(core), ONE, 7200);
+        feeCollector.updateConfig(
+            address(core),
+            address(core),
+            ONE,
+            7200,
+            3600
+        );
+    }
+
+    function testUpdateConfigRevertsOnInvalidCollectionPeriodSecondsTooLow()
+        public
+    {
+        vm.expectRevert(FeeCollector.InvalidCollectionPeriodSeconds.selector);
+        feeCollector.updateConfig(
+            address(core),
+            address(core),
+            0.1e18,
+            60 * 60 - 1,
+            7200
+        );
+    }
+
+    function testUpdateConfigRevertsOnInvalidCollectionPeriodSecondsTooHigh()
+        public
+    {
+        vm.expectRevert(FeeCollector.InvalidCollectionPeriodSeconds.selector);
+        feeCollector.updateConfig(
+            address(core),
+            address(core),
+            0.1e18,
+            60 * 60 * 24 * 30 + 1,
+            7200
+        );
     }
 
     function testUpdateConfigChangesConfig() public {
@@ -537,14 +706,16 @@ contract FeeCollectorTest is Test {
             address(newCore),
             address(core),
             0.2e18,
-            10_000
+            10_000,
+            7200
         );
 
         feeCollector.updateConfig(
             address(newCore),
             address(core),
             0.2e18,
-            10_000
+            10_000,
+            7200
         );
 
         FeeCollector.Config memory cfg = feeCollector.getConfig();
@@ -581,7 +752,13 @@ contract FeeCollectorTest is Test {
                 other
             )
         );
-        feeCollector.updateConfig(address(core), address(core), 0.2e18, 7200);
+        feeCollector.updateConfig(
+            address(core),
+            address(core),
+            0.2e18,
+            7200,
+            3600
+        );
     }
 
     // --------------------------------------
@@ -598,7 +775,8 @@ contract FeeCollectorTest is Test {
             address(core),
             0.1e18,
             3600,
-            address(maxbtc)
+            address(maxbtc),
+            3600
         );
     }
 
@@ -612,7 +790,8 @@ contract FeeCollectorTest is Test {
             address(core),
             0.1e18,
             3600,
-            address(maxbtc)
+            address(maxbtc),
+            3600
         );
 
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), data);
