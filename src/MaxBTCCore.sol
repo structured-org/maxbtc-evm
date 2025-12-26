@@ -76,7 +76,7 @@ contract MaxBTCCore is
 
     event Withdrawal(
         address indexed withdrawer,
-        uint256 maxBtcBurned,
+        uint256 maxBtcToBurn,
         uint256 batchId
     );
 
@@ -336,7 +336,7 @@ contract MaxBTCCore is
             Batch({
                 batchId: batchId,
                 btcRequested: 0,
-                maxBtcBurned: 0,
+                maxBtcToBurn: 0,
                 collectedAmount: 0,
                 collectorHistoricalBalance: 0,
                 depositDecimals: _depositDecimals()
@@ -604,9 +604,15 @@ contract MaxBTCCore is
         }
 
         Batch storage batch = _activeBatch();
-        batch.maxBtcBurned += maxBtcAmount;
-        MaxBTCERC20(config.maxBtcToken).burn(_msgSender(), maxBtcAmount);
+        batch.maxBtcToBurn += maxBtcAmount;
         uint256 batchId = batch.batchId;
+        //transfer maxBTC from the user to this contract
+        MaxBTCERC20(config.maxBtcToken).transferFrom(
+            _msgSender(),
+            address(this),
+            maxBtcAmount
+        );
+        //mint a withdrawal token to the user representing their claim
         WithdrawalToken(config.withdrawalToken).mint(
             _msgSender(),
             batchId,
@@ -635,7 +641,7 @@ contract MaxBTCCore is
         );
 
         if (state == ContractState.Idle) {
-            if (batch.maxBtcBurned > 0) {
+            if (batch.maxBtcToBurn > 0) {
                 finalized = _processWithdrawals(
                     config,
                     batchState,
@@ -683,6 +689,10 @@ contract MaxBTCCore is
             if (lockedAmount > 0) {
                 batchState.withdrawingBatch.collectedAmount += lockedAmount;
                 holder.unlock();
+                MaxBTCERC20(config.maxBtcToken).burn(
+                    address(this),
+                    batchState.withdrawingBatch.maxBtcToBurn
+                );
             }
             _setState(ContractState.WithdrawEthereum);
             emit TickWithdrawPending(lockedAmount);
@@ -758,7 +768,7 @@ contract MaxBTCCore is
             revert ExchangeRateStale();
         }
 
-        batch.btcRequested = (batch.maxBtcBurned * exchangeRate) / 1e18;
+        batch.btcRequested = (batch.maxBtcToBurn * exchangeRate) / 1e18;
 
         // depositBeforeFees = ceil(btcRequested / (1 - depositCost))
         uint256 depositBeforeFees = _ceilDiv(
